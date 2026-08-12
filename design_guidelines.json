@@ -1,0 +1,168 @@
+{
+  "app_name": "Botanica Store",
+  "personality": "3 Editorial Mobile LIGHT",
+  "personality_one_liner": "A calm, earthy, and highly refined editorial aesthetic that lets the natural ingredients and product imagery breathe through generous whitespace and elegant typography.",
+  "color": {
+    "surface": "#FDFDF9",
+    "onSurface": "#2A2F2A",
+    "surfaceSecondary": "#F4F4EE",
+    "onSurfaceSecondary": "#555C55",
+    "surfaceTertiary": "#EAEAE2",
+    "onSurfaceTertiary": "#2A2F2A",
+    "surfaceInverse": "#2A2F2A",
+    "onSurfaceInverse": "#FDFDF9",
+    "brand": "#657962",
+    "brandPrimary": "#657962",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#8FA38C",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E2E7E0",
+    "onBrandTertiary": "#2A2F2A",
+    "success": "#4A6D50",
+    "onSuccess": "#FFFFFF",
+    "warning": "#C28B4E",
+    "onWarning": "#FFFFFF",
+    "error": "#A85C5C",
+    "onError": "#FFFFFF",
+    "info": "#657962",
+    "onInfo": "#FFFFFF",
+    "border": "#E1E1DA",
+    "borderStrong": "#2A2F2A",
+    "divider": "#E1E1DA"
+  },
+  "typography": {
+    "displayFontFamily": "CormorantGaramond",
+    "textFontFamily": "DMSans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room. Allow typography and imagery to stand out by utilizing whitespace as a primary structural tool rather than boxing everything in cards.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 0,
+    "md": 4,
+    "lg": 8,
+    "pill": 999
+  },
+  "shadow_tier": 0,
+  "navigation": "bottom_tabs",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid surfaceSecondary or subtle brandTertiary tints for sticky elements rather than blur, maintaining the matte, earthy, editorial feel."
+    ],
+    "dont's": [
+      "No glassmorphism, blur, or heavy iOS-style transparency. Keep materials grounded and paper-like."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "solid surfaceSecondary",
+      "android": "solid surfaceSecondary",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "events": {
+      "add_to_cart": "ImpactFeedbackStyle.Light",
+      "checkout_submit": "ImpactFeedbackStyle.Medium",
+      "quantity_change": "SelectionFeedback",
+      "tab_press": "SelectionFeedback"
+    }
+  },
+  "screens": [
+    {
+      "name": "Storefront (Home)",
+      "purpose": "A minimal, magazine-like catalog of herbal and skincare products.",
+      "states": {
+        "loading": "Centered minimalist spinner in brand color.",
+        "empty": "Elegant serif text 'No products available.' with a minimal botanical line-art SVG.",
+        "error": "Serif text 'Unable to load catalog.' with a simple retry button."
+      },
+      "layout": "Hero image at the top with a subtle vertical gradient scrim to ensure text readability (if text over image). Below, a horizontally scrolling row of minimal category chips (pill shape, border outline for inactive, brandPrimary fill for active). Below that, a 2-column grid of products (width: (screen - 2*padding - gap)/2). Cards have 0 radius, large image (aspect ratio 4:5), with small sans-serif title and price underneath. No heavy shadows or borders around cards."
+    },
+    {
+      "name": "Product Detail",
+      "purpose": "Showcase the product with high-quality imagery and clean typography.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "Product not found.",
+        "error": "Error loading product details."
+      },
+      "layout": "Full-width product image at the top (no safe area top margin on the image to make it edge-to-edge). Beneath the image, large display serif title and sans-serif price. Generous vertical whitespace. Body text for description. Sticky 'Add to Cart' button at the bottom of the screen (anchored in a surface/surfaceSecondary container with safe area bottom padding)."
+    },
+    {
+      "name": "Cart & Checkout",
+      "purpose": "Review items and collect guest checkout details for Razorpay.",
+      "states": {
+        "loading": "Processing payment spinner.",
+        "empty": "Empty cart botanical illustration + 'Your cart is empty' in serif.",
+        "error": "Payment failed or validation error message."
+      },
+      "layout": "List of cart items separated by a 1pt divider. Each item has a square thumbnail, title, price, and minimalist +/- quantity controls. Below the items, subtotal and total breakdown. If checking out, a single-column form (name, email, phone, address) with labels above inputs (sans-serif, muted). Sticky 'Pay with Razorpay' primary CTA pinned to the bottom."
+    },
+    {
+      "name": "Order Success",
+      "purpose": "Confirm the order beautifully.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Centered layout with a botanical checkmark or elegant illustration. Large serif 'Thank You'. Order number and summary below in sans-serif. 'Continue Shopping' secondary button."
+    },
+    {
+      "name": "Admin Panel",
+      "purpose": "Manage the product catalog.",
+      "states": {
+        "loading": "Loading products.",
+        "empty": "No products added yet.",
+        "error": "Error fetching inventory."
+      },
+      "layout": "A list view of products with edit/delete swipe actions or small text buttons. A 'floating' or sticky 'Add Product' button. Add/Edit screen is a clean single-column form with text inputs for Name, Description, Price, Category, Stock, and Image URL."
+    }
+  ],
+  "images": {
+    "hero_banner": {
+      "url": "https://images.unsplash.com/photo-1526235591527-15084c256bad",
+      "alt": "Botanical leaves shadows natural background"
+    },
+    "skincare_placeholder": {
+      "url": "https://images.pexels.com/photos/20171275/pexels-photo-20171275.jpeg",
+      "alt": "Minimalist skincare bottle aesthetic"
+    },
+    "herbal_placeholder": {
+      "url": "https://images.unsplash.com/photo-1675016276166-816be56a8c11?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwyfHxoZXJiYWwlMjBzdXBwbGVtZW50JTIwbmF0dXJhbCUyMGFlc3RoZXRpY3xlbnwwfHx8fDE3ODQxODY3Mzd8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Herbal supplements jar natural aesthetic"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Design Identity: Strictly adhere to the '3 Editorial Mobile LIGHT' personality. The app should feel like a premium, minimal, calm magazine. No heavy shadows, no rounded UI, no glassmorphism.",
+    "Color Palette: Use the warm paper-white (surface) and muted sage green (brand). Text should be deep charcoal/forest green, never pure black.",
+    "Typography: Use CormorantGaramond for all headings (Store name, Product titles, section headers) and DMSans for body text, prices, and labels. Do not use weights above 500.",
+    "Layout Rules: Avoid boxing content into cards. Let products breathe on the surface. For the product grid, use a 2-column layout with 0 radius on the images and text directly underneath.",
+    "Sticky Actions: 'Add to Cart' and 'Pay with Razorpay' MUST be sticky at the bottom of their respective screens, above the safe area, never inline with scrolling content.",
+    "Images: Ensure any text overlaid on the hero image utilizes a linear-gradient scrim (top-to-bottom, transparent to surfaceInverse) to guarantee WCAG contrast.",
+    "Admin access: Since there's no auth, place a discreet 'Admin' tab in the bottom tab bar, or a settings cog on the home screen to access the Admin Panel.",
+    "Cart & Checkout: Combine the cart review and guest checkout form into one smooth flow or stacked screens. Inputs should be minimal (hairline borders, labels above)."
+  ]
+}

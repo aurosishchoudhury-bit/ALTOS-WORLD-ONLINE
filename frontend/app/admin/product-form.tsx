@@ -1,0 +1,256 @@
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
+import { Image } from "expo-image";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
+
+import AppText from "@/src/components/AppText";
+import Button from "@/src/components/Button";
+import FormField from "@/src/components/FormField";
+import { useToast } from "@/src/components/Toast";
+import { api } from "@/src/api/client";
+import { colors, spacing, radius } from "@/src/theme/theme";
+
+const CATEGORY_OPTIONS = ["Supplements", "Skincare"];
+
+export default function ProductForm() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const isEdit = !!id;
+
+  const [loading, setLoading] = useState(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [category, setCategory] = useState("Supplements");
+  const [image, setImage] = useState("");
+  const [stock, setStock] = useState("100");
+
+  useEffect(() => {
+    if (isEdit && id) {
+      api
+        .getProduct(id)
+        .then((p) => {
+          setName(p.name);
+          setDescription(p.description);
+          setPrice(String(p.price));
+          setCategory(p.category);
+          setImage(p.image);
+          setStock(String(p.stock));
+        })
+        .catch(() => toast.show("Could not load product"))
+        .finally(() => setLoading(false));
+    }
+  }, [id, isEdit, toast]);
+
+  const onSave = async () => {
+    if (!name.trim()) return toast.show("Enter a product name");
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum <= 0) return toast.show("Enter a valid price");
+    const stockNum = parseInt(stock, 10);
+
+    const payload = {
+      name: name.trim(),
+      description: description.trim(),
+      price: priceNum,
+      category: category.trim() || "Supplements",
+      image: image.trim(),
+      stock: isNaN(stockNum) ? 0 : stockNum,
+    };
+
+    setSaving(true);
+    try {
+      if (isEdit && id) {
+        await api.updateProduct(id, payload);
+        toast.show("Product updated");
+      } else {
+        await api.createProduct(payload);
+        toast.show("Product added");
+      }
+      router.back();
+    } catch (e: any) {
+      toast.show(e?.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <Pressable testID="form-close" onPress={() => router.back()} hitSlop={8}>
+          <Feather name="x" size={22} color={colors.onSurface} />
+        </Pressable>
+        <AppText variant="displaySemiBold" style={styles.headerTitle}>
+          {isEdit ? "Edit Product" : "Add Product"}
+        </AppText>
+        <View style={{ width: 22 }} />
+      </View>
+
+      <KeyboardAwareScrollView
+        bottomOffset={90}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
+        {image ? (
+          <Image source={{ uri: image }} style={styles.preview} contentFit="cover" />
+        ) : (
+          <View style={[styles.preview, styles.previewEmpty]}>
+            <Feather name="image" size={24} color={colors.muted} />
+            <AppText variant="body" color={colors.muted} style={{ marginTop: spacing.sm }}>
+              Image preview
+            </AppText>
+          </View>
+        )}
+
+        <FormField
+          testID="form-name"
+          label="Product name"
+          value={name}
+          onChangeText={setName}
+          placeholder="Ashwagandha Root Extract"
+        />
+        <FormField
+          testID="form-image"
+          label="Image URL"
+          value={image}
+          onChangeText={setImage}
+          placeholder="https://..."
+          autoCapitalize="none"
+        />
+
+        <AppText variant="medium" color={colors.onSurfaceSecondary} style={styles.label}>
+          CATEGORY
+        </AppText>
+        <View style={styles.chipRow}>
+          {CATEGORY_OPTIONS.map((c) => {
+            const active = category === c;
+            return (
+              <Pressable
+                key={c}
+                testID={`cat-${c}`}
+                onPress={() => setCategory(c)}
+                style={[styles.chip, active && styles.chipActive]}
+              >
+                <AppText
+                  variant="medium"
+                  color={active ? colors.onBrand : colors.onSurface}
+                  style={{ fontSize: 13 }}
+                >
+                  {c}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.priceRow}>
+          <View style={{ flex: 1 }}>
+            <FormField
+              testID="form-price"
+              label="Price (₹)"
+              value={price}
+              onChangeText={setPrice}
+              placeholder="499"
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField
+              testID="form-stock"
+              label="Stock"
+              value={stock}
+              onChangeText={setStock}
+              placeholder="100"
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+
+        <FormField
+          testID="form-description"
+          label="Description"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Short product description..."
+          multiline
+          numberOfLines={4}
+          style={styles.descInput}
+        />
+      </KeyboardAwareScrollView>
+
+      <KeyboardStickyView>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
+          <Button
+            testID="save-product-button"
+            label={isEdit ? "Save Changes" : "Add Product"}
+            onPress={onSave}
+            loading={saving}
+          />
+        </View>
+      </KeyboardStickyView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
+  center: { alignItems: "center", justifyContent: "center" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: { fontSize: 22 },
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 140,
+  },
+  preview: {
+    width: "100%",
+    height: 180,
+    backgroundColor: colors.surfaceSecondary,
+    marginBottom: spacing.xl,
+  },
+  previewEmpty: { alignItems: "center", justifyContent: "center" },
+  label: {
+    fontSize: 12,
+    letterSpacing: 0.4,
+    marginBottom: spacing.sm,
+  },
+  chipRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+  chip: {
+    height: 40,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  priceRow: { flexDirection: "row", gap: spacing.lg },
+  descInput: { minHeight: 110, textAlignVertical: "top" },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+});
