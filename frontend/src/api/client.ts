@@ -6,6 +6,8 @@ export type Product = {
   name: string;
   description: string;
   price: number;
+  mrp: number;
+  weight: string;
   category: string;
   image: string;
   stock: number;

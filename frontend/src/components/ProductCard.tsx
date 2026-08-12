@@ -46,14 +46,21 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
         </Pressable>
       </View>
       <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.category}>
-        {product.category}
+        {product.weight ? product.weight : product.category}
       </AppText>
       <AppText variant="displayMedium" style={styles.name} numberOfLines={2}>
         {product.name}
       </AppText>
-      <AppText variant="medium" style={styles.price}>
-        {formatINR(product.price)}
-      </AppText>
+      <View style={styles.priceRow}>
+        <AppText variant="medium" style={styles.price}>
+          {formatINR(product.price)}
+        </AppText>
+        {product.mrp > product.price && (
+          <AppText variant="body" color={colors.muted} style={styles.mrp}>
+            {formatINR(product.mrp)}
+          </AppText>
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -99,5 +106,15 @@ const styles = StyleSheet.create({
   price: {
     marginTop: 2,
     fontSize: 14,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  mrp: {
+    fontSize: 12,
+    textDecorationLine: "line-through",
   },
 });

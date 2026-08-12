@@ -53,7 +53,9 @@ def now_iso() -> str:
 class ProductBase(BaseModel):
     name: str
     description: str = ""
-    price: float  # in INR (rupees)
+    price: float  # DP / selling price in INR (rupees) — amount actually charged
+    mrp: float = 0  # Maximum Retail Price (shown struck-through); 0 = no MRP
+    weight: str = ""  # e.g. "60 capsules", "30ml", "250g"
     category: str = "Supplements"
     image: str = ""
     stock: int = 100
@@ -328,6 +330,8 @@ SEED_PRODUCTS = [
         "name": "Ashwagandha Root Extract",
         "description": "Traditional adaptogenic herb to support calm, balance, and everyday resilience. 60 vegetarian capsules, 600mg each.",
         "price": 499.0,
+        "mrp": 699.0,
+        "weight": "60 capsules",
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1675016276166-816be56a8c11?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 120,
@@ -337,6 +341,8 @@ SEED_PRODUCTS = [
         "name": "Vitamin C Radiance Serum",
         "description": "A lightweight botanical serum with stabilised Vitamin C to brighten and even skin tone. 30ml.",
         "price": 699.0,
+        "mrp": 999.0,
+        "weight": "30 ml",
         "category": "Skincare",
         "image": "https://images.pexels.com/photos/20171275/pexels-photo-20171275.jpeg?auto=compress&cs=tinysrgb&w=1000",
         "stock": 80,
@@ -346,6 +352,8 @@ SEED_PRODUCTS = [
         "name": "Turmeric & Ginger Blend",
         "description": "Golden wellness blend with curcumin and ginger to support natural inflammation response. 90 capsules.",
         "price": 549.0,
+        "mrp": 749.0,
+        "weight": "90 capsules",
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 100,
@@ -355,6 +363,8 @@ SEED_PRODUCTS = [
         "name": "Rosehip Facial Oil",
         "description": "Cold-pressed rosehip oil rich in essential fatty acids to nourish and restore skin overnight. 30ml.",
         "price": 799.0,
+        "mrp": 1099.0,
+        "weight": "30 ml",
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 60,
@@ -364,6 +374,8 @@ SEED_PRODUCTS = [
         "name": "Spirulina Green Boost",
         "description": "Nutrient-dense blue-green algae for daily energy and vitality. 120 tablets.",
         "price": 649.0,
+        "mrp": 899.0,
+        "weight": "120 tablets",
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 90,
@@ -373,6 +385,8 @@ SEED_PRODUCTS = [
         "name": "Aloe & Cucumber Gel",
         "description": "Soothing hydrating gel with pure aloe vera and cucumber extract for calm, refreshed skin. 100ml.",
         "price": 399.0,
+        "mrp": 549.0,
+        "weight": "100 ml",
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1556228578-8c89e6adf883?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 110,
@@ -390,6 +404,14 @@ async def seed_data():
             if not existing:
                 await db.products.insert_one(Product(**p).dict())
         logger.info("Seed check complete (had %d products)", count)
+
+    # Backfill MRP / weight on existing seed products that predate these fields.
+    for p in SEED_PRODUCTS:
+        await db.products.update_one(
+            {"name": p["name"], "$or": [{"mrp": {"$in": [0, None]}}, {"weight": {"$in": ["", None]}}]},
+            {"$set": {"mrp": p["mrp"], "weight": p["weight"]}},
+        )
+
     logger.info("Altos World Store API started. DEMO_MODE=%s", DEMO_MODE)
 
 

@@ -27,6 +27,8 @@ export default function ProductForm() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [mrp, setMrp] = useState("");
+  const [weight, setWeight] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
   const [stock, setStock] = useState("100");
@@ -39,6 +41,8 @@ export default function ProductForm() {
           setName(p.name);
           setDescription(p.description);
           setPrice(String(p.price));
+          setMrp(p.mrp ? String(p.mrp) : "");
+          setWeight(p.weight || "");
           setCategory(p.category);
           setImage(p.image);
           setStock(String(p.stock));
@@ -51,13 +55,19 @@ export default function ProductForm() {
   const onSave = async () => {
     if (!name.trim()) return toast.show("Enter a product name");
     const priceNum = parseFloat(price);
-    if (isNaN(priceNum) || priceNum <= 0) return toast.show("Enter a valid price");
+    if (isNaN(priceNum) || priceNum <= 0) return toast.show("Enter a valid selling price");
+    const mrpNum = parseFloat(mrp);
+    if (mrp.trim() && (isNaN(mrpNum) || mrpNum < priceNum)) {
+      return toast.show("MRP must be higher than the selling price");
+    }
     const stockNum = parseInt(stock, 10);
 
     const payload = {
       name: name.trim(),
       description: description.trim(),
       price: priceNum,
+      mrp: isNaN(mrpNum) ? 0 : mrpNum,
+      weight: weight.trim(),
       category: category.trim() || "Supplements",
       image: image.trim(),
       stock: isNaN(stockNum) ? 0 : stockNum,
@@ -161,11 +171,34 @@ export default function ProductForm() {
           <View style={{ flex: 1 }}>
             <FormField
               testID="form-price"
-              label="Price (₹)"
+              label="Selling price (DP ₹)"
               value={price}
               onChangeText={setPrice}
               placeholder="499"
               keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField
+              testID="form-mrp"
+              label="MRP (₹)"
+              value={mrp}
+              onChangeText={setMrp}
+              placeholder="699"
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        <View style={styles.priceRow}>
+          <View style={{ flex: 1 }}>
+            <FormField
+              testID="form-weight"
+              label="Weight / Size"
+              value={weight}
+              onChangeText={setWeight}
+              placeholder="60 capsules"
+              autoCapitalize="none"
             />
           </View>
           <View style={{ flex: 1 }}>

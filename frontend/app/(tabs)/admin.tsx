@@ -154,11 +154,19 @@ export default function Admin() {
                   {item.name}
                 </AppText>
                 <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.meta}>
-                  {item.category} · Stock {item.stock}
+                  {item.category}
+                  {item.weight ? ` · ${item.weight}` : ""} · Stock {item.stock}
                 </AppText>
-                <AppText variant="medium" style={styles.price}>
-                  {formatINR(item.price)}
-                </AppText>
+                <View style={styles.adminPriceRow}>
+                  <AppText variant="medium" style={styles.price}>
+                    {formatINR(item.price)}
+                  </AppText>
+                  {item.mrp > item.price && (
+                    <AppText variant="body" color={colors.muted} style={styles.adminMrp}>
+                      {formatINR(item.mrp)}
+                    </AppText>
+                  )}
+                </View>
               </View>
               <View style={styles.actions}>
                 <Pressable
@@ -390,6 +398,16 @@ const styles = StyleSheet.create({
   name: { fontSize: 19 },
   meta: { fontSize: 12, marginTop: 2 },
   price: { fontSize: 14, marginTop: 2 },
+  adminPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  adminMrp: {
+    fontSize: 12,
+    textDecorationLine: "line-through",
+  },
   actions: { flexDirection: "row", gap: spacing.xs },
   iconBtn: {
     width: 40,

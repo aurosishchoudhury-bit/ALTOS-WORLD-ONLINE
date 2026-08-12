@@ -100,14 +100,28 @@ export default function ProductDetail() {
 
         <View style={styles.body}>
           <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.category}>
-            {product.category}
+            {product.weight ? `${product.category} · ${product.weight}` : product.category}
           </AppText>
           <AppText variant="display" style={styles.title}>
             {product.name}
           </AppText>
-          <AppText variant="medium" style={styles.price}>
-            {formatINR(product.price)}
-          </AppText>
+          <View style={styles.priceRow}>
+            <AppText variant="medium" style={styles.price}>
+              {formatINR(product.price)}
+            </AppText>
+            {product.mrp > product.price && (
+              <>
+                <AppText variant="body" color={colors.muted} style={styles.mrp}>
+                  {formatINR(product.mrp)}
+                </AppText>
+                <View style={styles.discountPill}>
+                  <AppText variant="semibold" color={colors.onBrand} style={styles.discountText}>
+                    {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                  </AppText>
+                </View>
+              </>
+            )}
+          </View>
 
           <View style={styles.divider} />
 
@@ -184,7 +198,26 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 18,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     marginTop: spacing.sm,
+  },
+  mrp: {
+    fontSize: 15,
+    textDecorationLine: "line-through",
+  },
+  discountPill: {
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  discountText: {
+    fontSize: 11,
+    letterSpacing: 0.4,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
