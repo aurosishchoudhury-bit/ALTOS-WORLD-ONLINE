@@ -100,6 +100,9 @@ export const api = {
   async getOrder(orderId: string) {
     return handle(await fetch(`${API}/orders/${orderId}`));
   },
+  async listOrders(): Promise<any[]> {
+    return handle(await fetch(`${API}/orders`));
+  },
   webviewUrl(orderId: string): string {
     return `${API}/checkout/webview/${orderId}`;
   },
