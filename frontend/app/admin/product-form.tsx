@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Switch } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -33,6 +33,7 @@ export default function ProductForm() {
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
   const [stock, setStock] = useState("100");
+  const [bestseller, setBestseller] = useState(false);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -48,6 +49,7 @@ export default function ProductForm() {
           setCategory(p.category);
           setImage(p.image);
           setStock(String(p.stock));
+          setBestseller(!!p.bestseller);
         })
         .catch(() => toast.show("Could not load product"))
         .finally(() => setLoading(false));
@@ -81,6 +83,7 @@ export default function ProductForm() {
       category: category.trim() || "Supplements",
       image: image.trim(),
       stock: isNaN(stockNum) ? 0 : stockNum,
+      bestseller,
     };
 
     setSaving(true);
@@ -246,6 +249,27 @@ export default function ProductForm() {
           numberOfLines={4}
           style={styles.descInput}
         />
+
+        <Pressable
+          testID="form-bestseller"
+          onPress={() => setBestseller((v) => !v)}
+          style={styles.bestsellerRow}
+        >
+          <View style={{ flex: 1 }}>
+            <AppText variant="semibold" style={styles.bestsellerLabel}>
+              Bestseller
+            </AppText>
+            <AppText variant="body" color={colors.muted} style={styles.bestsellerHint}>
+              Feature this product in the Bestsellers row on the home screen
+            </AppText>
+          </View>
+          <Switch
+            value={bestseller}
+            onValueChange={setBestseller}
+            trackColor={{ false: colors.border, true: colors.brand }}
+            thumbColor={colors.surface}
+          />
+        </Pressable>
       </KeyboardAwareScrollView>
 
       <KeyboardStickyView>
@@ -265,6 +289,19 @@ export default function ProductForm() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   center: { alignItems: "center", justifyContent: "center" },
+  bestsellerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  bestsellerLabel: { fontSize: 14 },
+  bestsellerHint: { fontSize: 12, marginTop: 2 },
   header: {
     flexDirection: "row",
     alignItems: "center",

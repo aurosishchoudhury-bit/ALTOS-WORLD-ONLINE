@@ -8,6 +8,7 @@ export type Product = {
   price: number;
   mrp: number;
   offer_price: number;
+  bestseller?: boolean;
   weight: string;
   category: string;
   image: string;

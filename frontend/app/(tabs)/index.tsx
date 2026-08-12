@@ -24,7 +24,8 @@ import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { api, Product } from "@/src/api/client";
-import { colors, spacing, radius, fonts } from "@/src/theme/theme";
+import { getPriceInfo } from "@/src/utils/pricing";
+import { colors, spacing, radius, fonts, formatINR } from "@/src/theme/theme";
 
 const { width } = Dimensions.get("window");
 const HERO = "https://images.unsplash.com/photo-1526235591527-15084c256bad";
@@ -88,6 +89,8 @@ export default function Storefront() {
           p.category.toLowerCase().includes(query),
       )
     : products;
+
+  const bestsellers = !query && active === "All" ? products.filter((p) => p.bestseller) : [];
 
   const Header = (
     <View>
@@ -217,6 +220,49 @@ export default function Storefront() {
           );
         })}
       </ScrollView>
+
+      {bestsellers.length > 0 && (
+        <View style={styles.bsSection} testID="bestsellers-row">
+          <View style={styles.bsHeader}>
+            <Feather name="star" size={16} color={colors.brand} />
+            <AppText variant="displaySemiBold" style={styles.bsTitle}>
+              Bestsellers
+            </AppText>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bsRowContent}
+          >
+            {bestsellers.map((p) => {
+              const info = getPriceInfo(p, verified);
+              return (
+                <Pressable
+                  key={p.id}
+                  testID={`bestseller-${p.id}`}
+                  onPress={() => router.push(`/product/${p.id}`)}
+                  style={styles.bsCard}
+                >
+                  <Image source={{ uri: p.image }} style={styles.bsImage} contentFit="cover" />
+                  <AppText variant="medium" numberOfLines={2} style={styles.bsName}>
+                    {p.name}
+                  </AppText>
+                  <View style={styles.bsPriceRow}>
+                    <AppText variant="semibold" style={styles.bsPrice}>
+                      {formatINR(info.unit)}
+                    </AppText>
+                    {info.compareAt !== null && (
+                      <AppText variant="body" color={colors.muted} style={styles.bsMrp}>
+                        {formatINR(info.compareAt)}
+                      </AppText>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 
@@ -363,6 +409,50 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     marginTop: spacing.md,
+  },
+  bsSection: {
+    marginTop: spacing.lg,
+  },
+  bsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  bsTitle: {
+    fontSize: 18,
+  },
+  bsRowContent: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  bsCard: {
+    width: 150,
+  },
+  bsImage: {
+    width: 150,
+    height: 120,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  bsName: {
+    fontSize: 13,
+    marginTop: spacing.sm,
+    lineHeight: 18,
+  },
+  bsPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  bsPrice: {
+    fontSize: 14,
+  },
+  bsMrp: {
+    fontSize: 11,
+    textDecorationLine: "line-through",
   },
   loginWrap: {
     paddingHorizontal: spacing.lg,

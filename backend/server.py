@@ -57,6 +57,7 @@ class ProductBase(BaseModel):
     price: float  # DP / selling price in INR — charged only to verified Altos ID holders
     mrp: float = 0  # Maximum Retail Price; what regular (non-verified) customers pay
     offer_price: float = 0  # Optional offer for regular customers (admin-set); 0 = no offer
+    bestseller: bool = False  # Featured in the Bestsellers row on home
     weight: str = ""  # e.g. "60 capsules", "30ml", "250g"
     category: str = "Supplements"
     image: str = ""
