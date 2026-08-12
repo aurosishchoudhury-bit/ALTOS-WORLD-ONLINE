@@ -25,6 +25,7 @@ import { colors, spacing, radius } from "@/src/theme/theme";
 
 const { width } = Dimensions.get("window");
 const HERO = "https://images.unsplash.com/photo-1526235591527-15084c256bad";
+const LOGO = require("../../assets/images/altos-logo.jpg");
 
 export default function Storefront() {
   const router = useRouter();
@@ -75,18 +76,21 @@ export default function Storefront() {
 
   const Header = (
     <View>
+      <View style={[styles.logoBar, { paddingTop: insets.top + spacing.md }]}>
+        <Image source={LOGO} style={styles.logo} contentFit="contain" />
+      </View>
       <View style={styles.hero}>
         <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill} contentFit="cover" />
         <LinearGradient
           colors={["rgba(42,47,42,0.15)", "rgba(42,47,42,0.75)"]}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.heroContent, { paddingTop: insets.top + spacing.lg }]}>
+        <View style={styles.heroContent}>
           <AppText variant="body" color={colors.onSurfaceInverse} style={styles.heroKicker}>
-            CUTTACK SUPERZONE
+            WELLNESS · HERBAL · SKINCARE
           </AppText>
           <AppText variant="display" color={colors.onSurfaceInverse} style={styles.heroTitle}>
-            Altos World
+            Rooted in Nature
           </AppText>
           <AppText variant="body" color={colors.onSurfaceInverse} style={styles.heroSub}>
             Pure, plant-powered wellness delivered to your door.
@@ -197,9 +201,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
+  logoBar: {
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: spacing.md,
+  },
+  logo: {
+    width: 128,
+    height: 128,
+  },
   hero: {
     width: width,
-    height: 320,
+    height: 300,
     justifyContent: "flex-end",
   },
   heroContent: {
