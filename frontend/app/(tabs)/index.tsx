@@ -21,6 +21,7 @@ import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { api, Product } from "@/src/api/client";
 import { colors, spacing, radius, fonts } from "@/src/theme/theme";
 
@@ -32,6 +33,7 @@ export default function Storefront() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
+  const { verified } = useAltosAuth();
   const toast = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -107,6 +109,50 @@ export default function Storefront() {
             Pure, plant-powered wellness delivered to your door.
           </AppText>
         </View>
+      </View>
+
+      <View style={styles.loginWrap}>
+        {verified ? (
+          <View style={[styles.loginBox, styles.loginBoxVerified]} testID="altos-verified-box">
+            <View style={styles.loginIconWrap}>
+              <Feather name="check-circle" size={20} color={colors.success} />
+            </View>
+            <View style={styles.loginTextWrap}>
+              <AppText variant="semibold" style={styles.loginTitle} color={colors.success}>
+                Logged in as Altos ID holder
+              </AppText>
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.loginSub}>
+                Your Altos ID has been verified
+              </AppText>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.loginBox} testID="altos-login-box">
+            <View style={styles.loginIconWrap}>
+              <Feather name="user" size={20} color={colors.brand} />
+            </View>
+            <View style={styles.loginTextWrap}>
+              <AppText variant="semibold" style={styles.loginTitle}>
+                Altos ID Holder?
+              </AppText>
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.loginSub}>
+                Log in with your Altos ID to verify
+              </AppText>
+            </View>
+            <Pressable
+              testID="altos-login-button"
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                router.push("/altos-login");
+              }}
+              style={styles.loginBtn}
+            >
+              <AppText variant="semibold" color={colors.onBrand} style={styles.loginBtnText}>
+                Log in
+              </AppText>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.searchWrap}>
@@ -283,6 +329,54 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     marginTop: spacing.md,
+  },
+  loginWrap: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  loginBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+    padding: spacing.lg,
+  },
+  loginBoxVerified: {
+    borderColor: colors.success,
+    backgroundColor: colors.brandTertiary,
+  },
+  loginIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loginTextWrap: {
+    flex: 1,
+  },
+  loginTitle: {
+    fontSize: 15,
+  },
+  loginSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  loginBtn: {
+    height: 44,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
+    backgroundColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loginBtnText: {
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   searchWrap: {
     paddingHorizontal: spacing.lg,

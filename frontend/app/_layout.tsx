@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { CartProvider } from "@/src/context/CartContext";
+import { AltosAuthProvider } from "@/src/context/AltosAuthContext";
 import { ToastProvider } from "@/src/components/Toast";
 import { colors } from "@/src/theme/theme";
 
@@ -41,6 +42,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <SafeAreaProvider>
+          <AltosAuthProvider>
           <CartProvider>
             <ToastProvider>
               <StatusBar style="dark" />
@@ -55,9 +57,11 @@ export default function RootLayout() {
                 <Stack.Screen name="checkout" />
                 <Stack.Screen name="order-success" options={{ gestureEnabled: false }} />
                 <Stack.Screen name="admin/product-form" options={{ presentation: "modal" }} />
+                <Stack.Screen name="altos-login" options={{ presentation: "modal" }} />
               </Stack>
             </ToastProvider>
           </CartProvider>
+          </AltosAuthProvider>
         </SafeAreaProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
