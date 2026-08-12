@@ -7,6 +7,7 @@ export type Product = {
   description: string;
   price: number;
   mrp: number;
+  offer_price: number;
   weight: string;
   category: string;
   image: string;
@@ -67,12 +68,16 @@ export const api = {
   async deleteProduct(id: string): Promise<void> {
     await handle(await fetch(`${API}/products/${id}`, { method: "DELETE" }));
   },
-  async createOrder(items: { id: string; quantity: number }[], customer: Customer) {
+  async createOrder(
+    items: { id: string; quantity: number }[],
+    customer: Customer,
+    altosVerified: boolean,
+  ) {
     return handle(
       await fetch(`${API}/checkout/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, customer }),
+        body: JSON.stringify({ items, customer, altos_verified: altosVerified }),
       }),
     );
   },

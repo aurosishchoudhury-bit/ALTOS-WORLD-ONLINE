@@ -1,0 +1,44 @@
+{
+  "summary": "Backend + Frontend full regression for Altos ID / DP / MRP / offer_price feature. Backend: 25/25 pytest passing including 3 new pricing test classes (offer_price field, DP vs MRP vs offer per altos_verified, full verified checkout flow). Frontend: Home shows altos-login-box (unverified) with MRP-only prices; Log in -> confirm-logged-in flips to altos-verified-box and cards show DP + struck MRP. Product detail shows DP + MRP + % OFF pill + 'Altos ID holder DP price applied' note. Cart & checkout use DP prices. Full guest checkout (add-to-cart -> input-name/email/phone/address -> pay-button demo) reaches order-success page with Order ID + Total paid. Admin product form exposes 'form-offer-price' field which persists to backend and updates via PUT. Fixed two blocker missing-imports (useAltosAuth, getPriceInfo/discountPercent) in product/[id].tsx and checkout.tsx.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/product/[id].tsx", "issue": "Missing imports for useAltosAuth, getPriceInfo, discountPercent caused red-screen ReferenceError on every product detail open. FIXED by testing agent (added imports at top).", "testID": "add-to-cart-button", "priority": "CRITICAL"},
+      {"component": "app/checkout.tsx", "issue": "Missing import for useAltosAuth + getPriceInfo caused red-screen ReferenceError on entering checkout screen. FIXED by testing agent (added imports at top).", "testID": "pay-button", "priority": "CRITICAL"},
+      {"component": "app/admin/product-form.tsx", "issue": "In EDIT mode the existing product.offer_price is NOT hydrated into the offerPrice state (see useEffect L37-54: only name/description/price/mrp/weight/category/image/stock loaded). Result: editing a product that has offer_price shows the field blank; saving will silently wipe offer_price to 0. Please add `setOfferPrice(p.offer_price ? String(p.offer_price) : \"\");` after `setMrp(...)`.", "testID": "form-offer-price", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "product/[id].tsx", "issues": ["Font decode warnings on web preview (CormorantGaramond .ttf) — cosmetic only, does not break UI"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_botanica_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "In app/admin/product-form.tsx useEffect (edit mode), hydrate offerPrice from p.offer_price so admins do not accidentally wipe it out on save.",
+    "(Optional) Font decoding warnings on web preview for CormorantGaramond.ttf — investigate asset serving; low priority."
+  ],
+  "critical_code_review_comments": [
+    "server.py _unit_price correctly prioritises DP > offer > MRP > price fallback.",
+    "server.py update_product now includes offer_price in payload spread — verified via PUT test.",
+    "AltosAuthContext is session-only (useState in provider) — matches spec; state resets on reload as intended.",
+    "product-form.tsx: offer_price hydration missing in edit mode (see ui_bugs)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_botanica_api.py",
+    "/app/frontend/app/product/[id].tsx",
+    "/app/frontend/app/checkout.tsx"
+  ],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "100% of testable flows after 2 fixes"},
+  "seed_data_creation": "Created & cleaned up 3 TEST_ products via API (test_botanica_api.py). offer_price on seeded 'Aloe & Cucumber Gel' was set to 449 during test then REVERTED to 0 in the same test's finally block. No residual test data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Two missing-import blockers were fixed by testing agent (useAltosAuth/getPriceInfo/discountPercent in product/[id].tsx; useAltosAuth/getPriceInfo in checkout.tsx). One remaining known bug: admin edit form does not hydrate offer_price into state (product-form.tsx useEffect). Backend fully covered by /app/backend/tests/test_botanica_api.py including offer_price CRUD + pricing modes + verified full-flow.",
+  "rca_of_issue": "Blockers: product/[id].tsx and checkout.tsx referenced useAltosAuth and pricing helpers but never imported them (likely lost in a refactor). Symptoms: red-screen ReferenceError overlay on every product detail open and checkout entry. Repro: open home -> tap any product OR (with items in cart) tap Proceed to Checkout. Fix: added explicit imports from @/src/context/AltosAuthContext and @/src/utils/pricing at the top of both files. Verified end-to-end DP pricing checkout completes to /order-success."
+}

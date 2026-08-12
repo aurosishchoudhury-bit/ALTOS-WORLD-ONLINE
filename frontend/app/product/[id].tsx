@@ -19,6 +19,8 @@ import { useCart } from "@/src/context/CartContext";
 import { useToast } from "@/src/components/Toast";
 import { api, Product } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
+import { getPriceInfo, discountPercent } from "@/src/utils/pricing";
 
 const { width } = Dimensions.get("window");
 
@@ -27,6 +29,7 @@ export default function ProductDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
+  const { verified } = useAltosAuth();
   const toast = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -79,6 +82,7 @@ export default function ProductDetail() {
   }
 
   const outOfStock = product.stock <= 0;
+  const priceInfo = getPriceInfo(product, verified);
 
   return (
     <View style={styles.container}>
@@ -107,21 +111,26 @@ export default function ProductDetail() {
           </AppText>
           <View style={styles.priceRow}>
             <AppText variant="medium" style={styles.price}>
-              {formatINR(product.price)}
+              {formatINR(priceInfo.unit)}
             </AppText>
-            {product.mrp > product.price && (
+            {priceInfo.compareAt !== null && (
               <>
                 <AppText variant="body" color={colors.muted} style={styles.mrp}>
-                  {formatINR(product.mrp)}
+                  {formatINR(priceInfo.compareAt)}
                 </AppText>
                 <View style={styles.discountPill}>
                   <AppText variant="semibold" color={colors.onBrand} style={styles.discountText}>
-                    {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                    {discountPercent(priceInfo)}% OFF
                   </AppText>
                 </View>
               </>
             )}
           </View>
+          {verified && (
+            <AppText variant="body" color={colors.success} style={styles.dpNote}>
+              Altos ID holder DP price applied
+            </AppText>
+          )}
 
           <View style={styles.divider} />
 
@@ -149,7 +158,7 @@ export default function ProductDetail() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <Button
           testID="add-to-cart-button"
-          label={outOfStock ? "Out of stock" : `Add to Cart · ${formatINR(product.price * qty)}`}
+          label={outOfStock ? "Out of stock" : `Add to Cart · ${formatINR(priceInfo.unit * qty)}`}
           onPress={onAdd}
           disabled={outOfStock}
         />
@@ -218,6 +227,10 @@ const styles = StyleSheet.create({
   discountText: {
     fontSize: 11,
     letterSpacing: 0.4,
+  },
+  dpNote: {
+    fontSize: 12,
+    marginTop: spacing.sm,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

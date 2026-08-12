@@ -156,6 +156,7 @@ class TestCheckout:
                 "phone": "9999999999",
                 "address": "221B Baker Street, London",
             },
+            "altos_verified": True,
         }
         r = api_client.post(f"{API}/checkout/create-order", json=payload)
         assert r.status_code == 200, r.text
@@ -213,3 +214,189 @@ class TestCheckout:
     def test_demo_complete_404(self, api_client):
         r = api_client.post(f"{API}/checkout/demo-complete", json={"order_id": "no-such-id"})
         assert r.status_code == 404
+
+
+# ---------- Altos DP / MRP / offer_price pricing ----------
+def _find_product_by_name(api_client, name: str):
+    arr = api_client.get(f"{API}/products").json()
+    for p in arr:
+        if p["name"] == name:
+            return p
+    return None
+
+
+class TestOfferPriceField:
+    def test_products_expose_offer_price(self, api_client):
+        r = api_client.get(f"{API}/products")
+        assert r.status_code == 200
+        arr = r.json()
+        assert len(arr) > 0
+        for p in arr:
+            assert "offer_price" in p, f"offer_price missing on product {p.get('name')}"
+            assert "mrp" in p
+            assert isinstance(p["offer_price"], (int, float))
+
+
+class TestPricingByVerification:
+    """Verify create-order charges DP/MRP/offer based on altos_verified flag."""
+
+    _customer = {
+        "name": "TEST Alto Buyer",
+        "email": "alto@test.com",
+        "phone": "9999999999",
+        "address": "221B Baker Street, London",
+    }
+
+    def test_non_verified_charges_mrp(self, api_client):
+        p = _find_product_by_name(api_client, "Aloe & Cucumber Gel")
+        assert p is not None, "Seed product Aloe & Cucumber Gel missing"
+        assert p["price"] == 399.0 and p["mrp"] == 549.0
+        # offer_price should be 0 on seed
+        assert (p.get("offer_price") or 0) == 0
+        payload = {
+            "items": [{"id": p["id"], "quantity": 1}],
+            "customer": self._customer,
+            "altos_verified": False,
+        }
+        r = api_client.post(f"{API}/checkout/create-order", json=payload)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["amount"] == 549.0
+        assert d["amount_paise"] == 54900
+
+    def test_verified_charges_dp(self, api_client):
+        p = _find_product_by_name(api_client, "Aloe & Cucumber Gel")
+        payload = {
+            "items": [{"id": p["id"], "quantity": 1}],
+            "customer": self._customer,
+            "altos_verified": True,
+        }
+        r = api_client.post(f"{API}/checkout/create-order", json=payload)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["amount"] == 399.0
+        assert d["amount_paise"] == 39900
+
+    def test_offer_price_charged_when_set_and_not_verified(self, api_client):
+        p = _find_product_by_name(api_client, "Aloe & Cucumber Gel")
+        pid = p["id"]
+        # Set offer_price via PUT
+        update = {
+            "name": p["name"],
+            "description": p["description"],
+            "price": p["price"],
+            "mrp": p["mrp"],
+            "offer_price": 449.0,
+            "weight": p.get("weight", ""),
+            "category": p["category"],
+            "image": p["image"],
+            "stock": p["stock"],
+            "featured": p.get("featured", False),
+        }
+        r = api_client.put(f"{API}/products/{pid}", json=update)
+        assert r.status_code == 200, r.text
+        assert r.json()["offer_price"] == 449.0
+
+        # Verify persisted via GET
+        g = api_client.get(f"{API}/products/{pid}").json()
+        assert g["offer_price"] == 449.0
+
+        try:
+            # Non-verified: should now be charged offer_price
+            payload = {
+                "items": [{"id": pid, "quantity": 2}],
+                "customer": self._customer,
+                "altos_verified": False,
+            }
+            r = api_client.post(f"{API}/checkout/create-order", json=payload)
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["amount"] == 898.0  # 449 * 2
+            assert d["amount_paise"] == 89800
+
+            # Verified: still DP
+            payload_v = {**payload, "altos_verified": True}
+            r2 = api_client.post(f"{API}/checkout/create-order", json=payload_v)
+            assert r2.status_code == 200
+            assert r2.json()["amount"] == 798.0  # 399 * 2
+        finally:
+            # REVERT offer_price to 0
+            update["offer_price"] = 0
+            revert = api_client.put(f"{API}/products/{pid}", json=update)
+            assert revert.status_code == 200
+            assert revert.json()["offer_price"] == 0
+            g2 = api_client.get(f"{API}/products/{pid}").json()
+            assert g2["offer_price"] == 0
+
+    def test_offer_price_via_create_persists(self, api_client):
+        payload = {
+            "name": "TEST_Offer Priced Item",
+            "description": "test",
+            "price": 300.0,
+            "mrp": 500.0,
+            "offer_price": 400.0,
+            "weight": "10ml",
+            "category": "Skincare",
+            "image": "https://example.com/x.jpg",
+            "stock": 10,
+            "featured": False,
+        }
+        r = api_client.post(f"{API}/products", json=payload)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        pid = d["id"]
+        assert d["offer_price"] == 400.0
+        # Verify GET persists
+        g = api_client.get(f"{API}/products/{pid}").json()
+        assert g["offer_price"] == 400.0
+        # Update offer_price via PUT
+        payload["offer_price"] = 350.0
+        r2 = api_client.put(f"{API}/products/{pid}", json=payload)
+        assert r2.status_code == 200
+        assert r2.json()["offer_price"] == 350.0
+        g2 = api_client.get(f"{API}/products/{pid}").json()
+        assert g2["offer_price"] == 350.0
+        # Cleanup
+        api_client.delete(f"{API}/products/{pid}")
+
+
+class TestFullVerifiedCheckoutFlow:
+    """create-order (verified) -> demo-complete -> GET /orders shows verified & snapshot DP price."""
+
+    def test_full_flow(self, api_client):
+        p = _find_product_by_name(api_client, "Aloe & Cucumber Gel")
+        assert p is not None
+        payload = {
+            "items": [{"id": p["id"], "quantity": 3}],
+            "customer": {
+                "name": "TEST Verified Buyer",
+                "email": "vbuyer@test.com",
+                "phone": "9999999999",
+                "address": "221B Baker Street, London",
+            },
+            "altos_verified": True,
+        }
+        r = api_client.post(f"{API}/checkout/create-order", json=payload)
+        assert r.status_code == 200
+        d = r.json()
+        oid = d["order_id"]
+        assert d["amount"] == 1197.0  # 399 * 3
+
+        c = api_client.post(f"{API}/checkout/demo-complete", json={"order_id": oid})
+        assert c.status_code == 200
+        assert c.json()["status"] == "paid"
+
+        o = api_client.get(f"{API}/orders/{oid}").json()
+        assert o["altos_verified"] is True
+        assert o["status"] == "paid"
+        assert o["amount"] == 1197.0
+        assert len(o["items"]) == 1
+        assert o["items"][0]["unit_price"] == 399.0
+        assert o["items"][0]["quantity"] == 3
+        assert o["items"][0]["line_total"] == 1197.0
+
+        # Listing includes this order and altos_verified flag
+        arr = api_client.get(f"{API}/orders").json()
+        found = [x for x in arr if x["id"] == oid]
+        assert len(found) == 1
+        assert found[0]["altos_verified"] is True

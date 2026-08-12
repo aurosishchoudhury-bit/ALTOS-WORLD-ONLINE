@@ -122,7 +122,7 @@ export default function Storefront() {
                 Logged in as Altos ID holder
               </AppText>
               <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.loginSub}>
-                Your Altos ID has been verified
+                DP prices unlocked for you
               </AppText>
             </View>
           </View>
@@ -136,7 +136,7 @@ export default function Storefront() {
                 Altos ID Holder?
               </AppText>
               <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.loginSub}>
-                Log in with your Altos ID to verify
+                Log in to unlock DP prices
               </AppText>
             </View>
             <Pressable

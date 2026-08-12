@@ -7,6 +7,8 @@ import * as Haptics from "expo-haptics";
 import AppText from "./AppText";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 import { Product } from "@/src/api/client";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
+import { getPriceInfo } from "@/src/utils/pricing";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - spacing.lg * 2 - spacing.lg) / 2;
@@ -18,6 +20,9 @@ type Props = {
 };
 
 export default function ProductCard({ product, onPress, onAdd }: Props) {
+  const { verified } = useAltosAuth();
+  const priceInfo = getPriceInfo(product, verified);
+
   const handleAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onAdd();
@@ -53,11 +58,11 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
       </AppText>
       <View style={styles.priceRow}>
         <AppText variant="medium" style={styles.price}>
-          {formatINR(product.price)}
+          {formatINR(priceInfo.unit)}
         </AppText>
-        {product.mrp > product.price && (
+        {priceInfo.compareAt !== null && (
           <AppText variant="body" color={colors.muted} style={styles.mrp}>
-            {formatINR(product.mrp)}
+            {formatINR(priceInfo.compareAt)}
           </AppText>
         )}
       </View>

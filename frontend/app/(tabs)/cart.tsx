@@ -9,12 +9,15 @@ import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
+import { getPriceInfo } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { lines, subtotal, setQuantity, removeItem, count } = useCart();
+  const { verified } = useAltosAuth();
 
   if (lines.length === 0) {
     return (
@@ -63,7 +66,7 @@ export default function CartScreen() {
                   {line.product.name}
                 </AppText>
                 <AppText variant="medium" style={styles.itemPrice}>
-                  {formatINR(line.product.price)}
+                  {formatINR(getPriceInfo(line.product, verified).unit)}
                 </AppText>
                 <View style={styles.itemControls}>
                   <QuantityStepper

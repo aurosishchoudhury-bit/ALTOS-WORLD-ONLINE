@@ -11,6 +11,8 @@ import Button from "@/src/components/Button";
 import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
+import { getPriceInfo } from "@/src/utils/pricing";
 import { api } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
@@ -21,6 +23,7 @@ export default function Checkout() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const { lines, subtotal, clear } = useCart();
+  const { verified } = useAltosAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,7 +61,7 @@ export default function Checkout() {
         phone: phone.trim(),
         address: address.trim(),
       };
-      const order = await api.createOrder(items, customer);
+      const order = await api.createOrder(items, customer, verified);
 
       if (order.demo) {
         // Demo mode: no live Razorpay keys yet — simulate a successful payment.
@@ -170,7 +173,9 @@ export default function Checkout() {
             <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.summaryName}>
               {l.product.name} × {l.quantity}
             </AppText>
-            <AppText variant="medium">{formatINR(l.product.price * l.quantity)}</AppText>
+            <AppText variant="medium">
+              {formatINR(getPriceInfo(l.product, verified).unit * l.quantity)}
+            </AppText>
           </View>
         ))}
         <View style={[styles.summaryRow, { marginTop: spacing.md }]}>

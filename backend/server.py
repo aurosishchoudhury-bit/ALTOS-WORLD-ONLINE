@@ -53,8 +53,9 @@ def now_iso() -> str:
 class ProductBase(BaseModel):
     name: str
     description: str = ""
-    price: float  # DP / selling price in INR (rupees) — amount actually charged
-    mrp: float = 0  # Maximum Retail Price (shown struck-through); 0 = no MRP
+    price: float  # DP / selling price in INR — charged only to verified Altos ID holders
+    mrp: float = 0  # Maximum Retail Price; what regular (non-verified) customers pay
+    offer_price: float = 0  # Optional offer for regular customers (admin-set); 0 = no offer
     weight: str = ""  # e.g. "60 capsules", "30ml", "250g"
     category: str = "Supplements"
     image: str = ""
@@ -86,6 +87,7 @@ class Customer(BaseModel):
 class CreateOrderRequest(BaseModel):
     items: List[CartItemIn] = Field(min_length=1)
     customer: Customer
+    altos_verified: bool = False
 
 
 class VerifyRequest(BaseModel):
@@ -154,20 +156,32 @@ async def delete_product(product_id: str):
 
 
 # ---------------- Checkout routes ----------------
-async def _price_cart(items: List[CartItemIn]):
+def _unit_price(product: dict, altos_verified: bool) -> float:
+    """DP price for verified Altos ID holders; offer price or MRP for everyone else."""
+    if altos_verified:
+        return float(product["price"])
+    offer = float(product.get("offer_price") or 0)
+    mrp = float(product.get("mrp") or 0)
+    if offer > 0:
+        return offer
+    return mrp if mrp > 0 else float(product["price"])
+
+
+async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
     total = 0.0
     snapshot = []
     for item in items:
         product = await db.products.find_one({"id": item.id}, {"_id": 0})
         if not product:
             raise HTTPException(400, f"Unknown product: {item.id}")
-        line = float(product["price"]) * item.quantity
+        unit = _unit_price(product, altos_verified)
+        line = unit * item.quantity
         total += line
         snapshot.append({
             "id": item.id,
             "name": product["name"],
             "image": product.get("image", ""),
-            "unit_price": float(product["price"]),
+            "unit_price": unit,
             "quantity": item.quantity,
             "line_total": line,
         })
@@ -176,7 +190,7 @@ async def _price_cart(items: List[CartItemIn]):
 
 @api_router.post("/checkout/create-order")
 async def create_order(payload: CreateOrderRequest):
-    total, snapshot = await _price_cart(payload.items)
+    total, snapshot = await _price_cart(payload.items, payload.altos_verified)
     amount_paise = int(round(total * 100))
     order_id = str(uuid.uuid4())
     receipt = "rcpt_" + order_id[:30]
@@ -201,6 +215,7 @@ async def create_order(payload: CreateOrderRequest):
         "currency": "INR",
         "items": snapshot,
         "customer": payload.customer.dict(),
+        "altos_verified": payload.altos_verified,
         "status": "created",
         "demo": DEMO_MODE,
         "created_at": now_iso(),

@@ -28,6 +28,7 @@ export default function ProductForm() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [mrp, setMrp] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
   const [weight, setWeight] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
@@ -42,6 +43,7 @@ export default function ProductForm() {
           setDescription(p.description);
           setPrice(String(p.price));
           setMrp(p.mrp ? String(p.mrp) : "");
+          setOfferPrice(p.offer_price ? String(p.offer_price) : "");
           setWeight(p.weight || "");
           setCategory(p.category);
           setImage(p.image);
@@ -60,6 +62,13 @@ export default function ProductForm() {
     if (mrp.trim() && (isNaN(mrpNum) || mrpNum < priceNum)) {
       return toast.show("MRP must be higher than the selling price");
     }
+    const offerNum = parseFloat(offerPrice);
+    if (offerPrice.trim()) {
+      if (isNaN(offerNum) || offerNum <= 0) return toast.show("Enter a valid offer price");
+      if (!isNaN(mrpNum) && offerNum > mrpNum) {
+        return toast.show("Offer price cannot be higher than MRP");
+      }
+    }
     const stockNum = parseInt(stock, 10);
 
     const payload = {
@@ -67,6 +76,7 @@ export default function ProductForm() {
       description: description.trim(),
       price: priceNum,
       mrp: isNaN(mrpNum) ? 0 : mrpNum,
+      offer_price: offerPrice.trim() && !isNaN(offerNum) ? offerNum : 0,
       weight: weight.trim(),
       category: category.trim() || "Supplements",
       image: image.trim(),
@@ -189,6 +199,19 @@ export default function ProductForm() {
             />
           </View>
         </View>
+
+        <FormField
+          testID="form-offer-price"
+          label="Offer price for regular customers (₹, optional)"
+          value={offerPrice}
+          onChangeText={setOfferPrice}
+          placeholder="Leave empty to charge MRP"
+          keyboardType="decimal-pad"
+        />
+        <AppText variant="body" color={colors.muted} style={styles.hint}>
+          DP price is shown only to verified Altos ID holders. Regular customers see MRP, or this
+          offer price when set.
+        </AppText>
 
         <View style={styles.priceRow}>
           <View style={{ flex: 1 }}>

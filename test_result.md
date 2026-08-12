@@ -101,3 +101,40 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+backend:
+  - task: "Role-based pricing in checkout (altos_verified flag)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added offer_price field to Product model; _unit_price() charges DP (price) when altos_verified=true, else offer_price if >0, else MRP. create-order accepts altos_verified bool and stores it on order. Manually curl-verified: 549 (MRP), 399 (DP), 499 (offer)."
+
+frontend:
+  - task: "Altos ID login (webview verification) + DP prices only for verified users"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/altos-login.tsx, /app/frontend/src/utils/pricing.ts, /app/frontend/src/context/AltosAuthContext.tsx, ProductCard, product/[id], cart, checkout, admin/product-form"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Login card on home opens https://shop.altosindia.net/login/dsm in incognito WebView (native); on web a fallback with 'I have logged in' confirm. getPriceInfo() drives ProductCard, product detail, cart, checkout display + subtotal. createOrder now sends altos_verified. Admin form has new Offer Price field."
+
+test_plan:
+  current_focus:
+    - "Role-based pricing in checkout (altos_verified flag)"
+    - "Altos ID login + DP price visibility"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "New feature: DP prices visible/billed only to Altos ID verified users. Non-verified see MRP (or admin offer_price). Verify backend pricing modes and full guest checkout regression (demo mode), plus frontend price display before/after verification (web fallback: tap Log in then 'I have logged in')."
