@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 
 import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
+import HomeMenu from "@/src/components/HomeMenu";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
@@ -43,6 +44,7 @@ export default function Storefront() {
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async (category: string) => {
     try {
@@ -90,7 +92,19 @@ export default function Storefront() {
   const Header = (
     <View>
       <View style={[styles.logoBar, { paddingTop: insets.top + spacing.md }]}>
+        <Pressable
+          testID="menu-button"
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            setMenuOpen(true);
+          }}
+          hitSlop={8}
+          style={styles.menuBtn}
+        >
+          <Feather name="menu" size={24} color={colors.onSurface} />
+        </Pressable>
         <Image source={LOGO} style={styles.logo} contentFit="contain" />
+        <View style={styles.menuBtn} />
       </View>
       <View style={styles.hero}>
         <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -213,6 +227,12 @@ export default function Storefront() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} />
         </View>
+        <HomeMenu
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          categories={categories}
+          onSelectCategory={onSelectCategory}
+        />
       </View>
     );
   }
@@ -282,6 +302,12 @@ export default function Storefront() {
           </View>
         }
       />
+      <HomeMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        categories={categories}
+        onSelectCategory={onSelectCategory}
+      />
     </View>
   );
 }
@@ -295,9 +321,17 @@ const styles = StyleSheet.create({
   },
   logoBar: {
     backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  menuBtn: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: spacing.md,
   },
   logo: {
     width: 128,
