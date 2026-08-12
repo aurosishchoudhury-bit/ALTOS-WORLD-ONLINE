@@ -110,6 +110,36 @@ export const api = {
   async listOrders(): Promise<any[]> {
     return handle(await fetch(`${API}/orders`));
   },
+  async updateOrderStatus(
+    orderId: string,
+    data: { status: string; awb?: string; courier_name?: string; tracking_url?: string },
+  ) {
+    return handle(
+      await fetch(`${API}/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async shiprocketStatus(): Promise<{ connected: boolean; email?: string }> {
+    return handle(await fetch(`${API}/shiprocket/status`));
+  },
+  async shiprocketConnect(email: string, password: string) {
+    return handle(
+      await fetch(`${API}/shiprocket/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      }),
+    );
+  },
+  async shiprocketDisconnect() {
+    return handle(await fetch(`${API}/shiprocket/disconnect`, { method: "POST" }));
+  },
+  async shiprocketSync(): Promise<{ checked: number; shiprocket_orders: number; updated: any[] }> {
+    return handle(await fetch(`${API}/shiprocket/sync`, { method: "POST" }));
+  },
   webviewUrl(orderId: string): string {
     return `${API}/checkout/webview/${orderId}`;
   },

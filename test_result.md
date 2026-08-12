@@ -138,3 +138,33 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "New feature: DP prices visible/billed only to Altos ID verified users. Non-verified see MRP (or admin offer_price). Verify backend pricing modes and full guest checkout regression (demo mode), plus frontend price display before/after verification (web fallback: tap Log in then 'I have logged in')."
+
+backend:
+  - task: "Shiprocket link/sync endpoints + order status PATCH"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added GET /api/shiprocket/status, POST /api/shiprocket/connect (validates login vs https://apiv2.shiprocket.in), POST /api/shiprocket/disconnect, POST /api/shiprocket/sync (matches Shiprocket channel_order_id vs local order id or first-8-char code; maps SHIPPED/DELIVERED; saves awb/courier/tracking_url), PATCH /api/orders/{id}/status (paid|shipped|delivered + optional awb/courier_name/tracking_url). No real Shiprocket creds — connect will fail with 400 against real API (expected)."
+
+frontend:
+  - task: "WhatsApp order confirmation + shipping updates, Shiprocket linking UI, order status toggles"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/admin.tsx, /app/frontend/app/order-success.tsx, /app/frontend/src/utils/whatsapp.ts, /app/frontend/src/api/client.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "order-success has green 'Share confirmation on WhatsApp' (wa.me share). Admin Orders: Shiprocket card (Link modal w/ sr-email & sr-password, Sync button when linked, Unlink), per-order green WhatsApp button (Confirm order / Send tracking based on status), Mark Shipped / Mark Delivered buttons (PATCH). Marking shipped auto-opens WhatsApp with tracking message to customer phone."
+
+agent_communication:
+  - agent: "main"
+    message: "Test new Shiprocket + WhatsApp feature. Shiprocket external API has NO credentials — test connect failure path, 409 on sync when unlinked, and PATCH status transitions. WhatsApp buttons open wa.me URLs (new tab on web) — verify URL/text, don't actually send."

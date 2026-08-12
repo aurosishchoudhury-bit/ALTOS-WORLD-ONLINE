@@ -8,6 +8,7 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import { api } from "@/src/api/client";
+import { openWhatsApp, orderConfirmationMessage } from "@/src/utils/whatsapp";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function OrderSuccess() {
@@ -70,6 +71,14 @@ export default function OrderSuccess() {
       </View>
 
       <View style={styles.footer}>
+        {order && (
+          <Button
+            testID="whatsapp-share-button"
+            label="Share confirmation on WhatsApp"
+            onPress={() => openWhatsApp(orderConfirmationMessage(order))}
+            style={styles.whatsappBtn}
+          />
+        )}
         <Button
           testID="continue-shopping-button"
           label="Continue Shopping"
@@ -124,5 +133,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingBottom: spacing.md,
+    gap: spacing.md,
+  },
+  whatsappBtn: {
+    backgroundColor: "#25D366",
   },
 });

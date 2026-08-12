@@ -1,0 +1,50 @@
+{
+  "summary": "Backend + Frontend test for NEW features: (1) WhatsApp wa.me deep-links, (2) Shiprocket link/unlink/sync/status, (3) PATCH /orders/{id}/status with shipped/delivered. Backend: 12/12 NEW pytest cases pass (test_shiprocket_and_status.py). Shiprocket status=unlinked returns {connected:false}; sync unlinked -> 409 'not linked'; connect with fake creds -> 400 with 'API user' guidance (expected — real Shiprocket rejects); disconnect idempotent; PATCH shipped sets shipped_at and awb/courier/tracking fields; PATCH delivered sets delivered_at; invalid status -> 400; unknown id -> 404. Regression pricing tests still pass (33/34 overall; the 1 flake is a pytest-xdist parallel race in TestPricingByVerification.test_non_verified_charges_mrp that reads offer_price while a sibling test mutates it — passes cleanly when run serially, pre-existing issue). Frontend: Admin > Orders shows Shiprocket card (shiprocket-card) with Link button. Modal fields (sr-email, sr-password, sr-connect, sr-cancel) all render. Fake creds -> error toast rendered. Cancel closes modal. Full checkout (Ashwagandha DP=549, cart, guest checkout, pay-button demo) reaches /order-success and whatsapp-share-button opens a WhatsApp popup with encoded 'Order Confirmed' text. Mark Shipped opens wa.me popup containing phone 919998887777 AND 'Order+Shipped' — button label flips to 'Send tracking' and Mark Delivered appears. Mark Delivered persists (backend confirmed status=delivered with delivered_at). ONE CRITICAL UI BUG FOUND: statusMeta in admin.tsx is missing 'shipped' and 'delivered' cases, so the order badge falls through to 'Pending' for shipped/delivered orders even though the DB is correct — see rca_of_issue. Also observed: leading emoji in WhatsApp messages (✅ / 📦) is rendered as U+FFFD replacement char in the URL (source file has correct UTF-8 E2 9C 85 for ✅, so this is a metro/babel/hermes runtime encoding issue).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "pytest-xdist parallel run of test_botanica_api.py::TestPricingByVerification", "issue": "test_non_verified_charges_mrp is flaky under parallel xdist because a sibling test mutates offer_price on 'Aloe & Cucumber Gel' during its window. Passes when run serially. Suggest either serialising this class or moving offer_price mutation to a dedicated TEST_ product."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/(tabs)/admin.tsx statusMeta()", "issue": "Missing switch cases for 'shipped' and 'delivered' — both fall through to default 'Pending' badge. After Mark Shipped / Mark Delivered the badge still reads 'Pending' even though the backend order.status is 'shipped' / 'delivered' (verified via GET /api/orders/{id}). Add cases: 'shipped' -> {label:'Shipped', color: colors.brand/warning}, 'delivered' -> {label:'Delivered', color: colors.success}. Reference: /app/frontend/app/(tabs)/admin.tsx:37-47.", "testID": "admin-order-*", "priority": "HIGH"},
+      {"component": "src/utils/whatsapp.ts", "issue": "Leading emoji ✅ (in orderConfirmationMessage) and 📦 (in shippingUpdateMessage) render as U+FFFD replacement char (%EF%BF%BD) inside the generated wa.me URL — the customer sees a garbled '?' at the start of the WhatsApp message. Source file has correct UTF-8 bytes E2 9C 85 / F0 9F 93 A6, so this is a metro/babel/hermes runtime transform issue. Suggested workaround: replace the leading emoji with a non-BMP-safe alternative (e.g. '✓' U+2713, '★', or plain text like '[Order Confirmed]') OR set 'utf8BOM: false' / verify metro asset transformation. Reference: /app/frontend/src/utils/whatsapp.ts:26 and :40.", "testID": "whatsapp-share-button / whatsapp-{orderId}", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (all screens)", "issues": ["CormorantGaramond font .ttf files fail to decode on web preview ('OTS parsing error: invalid sfntVersion: 168430090'). Falls back to system serif — cosmetic only, does not break functionality. Same issue was flagged in iteration_3.json."]}
+    ],
+    "react_native_issues": [
+      {"component": "src/context/... (uses of `pointerEvents` prop)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' — please migrate any `pointerEvents=\"...\"` props to `style={{pointerEvents:'...'}}` for RN 0.79+ compatibility."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_botanica_api.py",
+    "/app/backend/tests/test_shiprocket_and_status.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX (HIGH): admin.tsx statusMeta() — add cases for 'shipped' and 'delivered' so the badge reflects the real status. Currently anything other than paid/captured/failed reads 'Pending'.",
+    "FIX (MEDIUM): whatsapp.ts — either drop the leading ✅ / 📦 emojis or replace with BMP-safe equivalents; the current wa.me URLs contain a %EF%BF%BD replacement char which customers see as '?' at the start of the WhatsApp message.",
+    "(LOW) test_botanica_api.py::TestPricingByVerification: mutate offer_price on a dedicated TEST_ product instead of the shared seed 'Aloe & Cucumber Gel' to remove the xdist race with test_non_verified_charges_mrp.",
+    "(LOW) Migrate deprecated pointerEvents prop -> style.pointerEvents where used.",
+    "(INFO) Shiprocket connect endpoint 400 with fake creds is CORRECT behaviour and matches the review request. No action needed — link flow will work once real API user creds are added by user."
+  ],
+  "critical_code_review_comments": [
+    "server.py update_order_status correctly restricts status to {paid, shipped, delivered}, sets shipped_at/delivered_at, and persists awb/courier_name/tracking_url when provided. Verified end-to-end.",
+    "server.py shiprocket_status/connect/disconnect/sync flow is sound; sync unlinked correctly raises 409 not 500. connect uses upsert; disconnect is idempotent.",
+    "admin.tsx onSetStatus triggers openWhatsApp(shippingUpdateMessage(...), phone) after a successful PATCH → verified popup fires from within the same user gesture (Chrome popup blocker allowed it).",
+    "order-success.tsx whatsapp-share-button correctly opens wa.me without a phone (universal share).",
+    "whatsapp.ts phone normalisation: 10-digit -> prepends 91; other lengths passed through — matches request. Verified 9998887777 -> 919998887777 in popup URL."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_shiprocket_and_status.py (NEW: 12 tests for shiprocket + order-status)"
+  ],
+  "success_rate": {"backend": "100% for new features (12/12 new); overall 33/34 with 1 pre-existing xdist flake", "frontend": "Shiprocket admin card, modal, checkout->success->wa.me share, mark-shipped->wa.me popup, mark-delivered PATCH — all functional. Blocker: status badge visually stuck at 'Pending' (see ui_bugs)."},
+  "seed_data_creation": "Created 1 demo order (paid then shipped then delivered) via API/UI: id f4c62c9e-0974-4c4b-ad24-0cb86de94020 (TEST Buyer, 9998887777). Also 1 additional demo order via admin-flow prior UI clicks. Not cleaned up; leaves harmless TEST_ prefixed orders in the DB.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New tests live at /app/backend/tests/test_shiprocket_and_status.py — 12 cases covering shiprocket status/connect/disconnect/sync + PATCH /orders/{id}/status. Two frontend fixes needed before re-verification: (1) admin.tsx statusMeta missing shipped/delivered cases; (2) whatsapp.ts leading emoji replacement-char issue. After fixes, re-run playwright: (a) click mark-shipped-{id}, assert badge text becomes 'Shipped'; (b) click mark-delivered-{id}, assert badge text becomes 'Delivered'; (c) capture wa.me popup URL and assert it starts with '%E2%9C%85' (✅) or '%F0%9F%93%A6' (📦) instead of '%EF%BF%BD'. Shiprocket link flow with real creds is EXPECTED to remain 400 until user provides API-user creds — that is documented as MOCKED and not a bug.",
+  "rca_of_issue": "UI-badge bug RCA: /app/frontend/app/(tabs)/admin.tsx L37-47 statusMeta only handles 'paid'/'captured'/'failed'; every other status (including 'shipped' and 'delivered' which we just added on the backend) falls through to default {label:'Pending', color: colors.warning}. Repro: 1) Complete a demo checkout so an order is 'paid'. 2) Admin > Orders > tap Mark Shipped. Observed: WhatsApp button label DOES flip to 'Send tracking' (uses order.status directly in the conditional at L414), Mark Delivered button appears (L431), but badge in top-right corner still reads 'Pending'. 3) Backend GET /api/orders/{id} confirms status='shipped'/'delivered' with correct timestamps — bug is purely in statusMeta. Fix: add cases 'shipped' -> {label:'Shipped', color: colors.brand} and 'delivered' -> {label:'Delivered', color: colors.success}."
+}

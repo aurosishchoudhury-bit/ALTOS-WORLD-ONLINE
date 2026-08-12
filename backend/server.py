@@ -11,8 +11,9 @@ import uuid
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+import httpx
 import razorpay
 
 ROOT_DIR = Path(__file__).parent
@@ -99,6 +100,18 @@ class VerifyRequest(BaseModel):
 
 class DemoCompleteRequest(BaseModel):
     order_id: str
+
+
+class ShiprocketConnectRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str  # paid | shipped | delivered
+    awb: Optional[str] = None
+    courier_name: Optional[str] = None
+    tracking_url: Optional[str] = None
 
 
 # ---------------- Product routes ----------------
@@ -287,6 +300,174 @@ async def get_order(order_id: str):
     if not doc:
         raise HTTPException(404, "Order not found")
     return doc
+
+
+ALLOWED_ORDER_STATUSES = {"paid", "shipped", "delivered"}
+
+
+@api_router.patch("/orders/{order_id}/status")
+async def update_order_status(order_id: str, payload: OrderStatusUpdate):
+    if payload.status not in ALLOWED_ORDER_STATUSES:
+        raise HTTPException(400, f"Status must be one of {sorted(ALLOWED_ORDER_STATUSES)}")
+    update = {"status": payload.status}
+    for field in ("awb", "courier_name", "tracking_url"):
+        value = getattr(payload, field)
+        if value is not None:
+            update[field] = value
+    if payload.status == "shipped":
+        update["shipped_at"] = now_iso()
+    if payload.status == "delivered":
+        update["delivered_at"] = now_iso()
+    res = await db.orders.update_one({"id": order_id}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Order not found")
+    doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    return doc
+
+
+# ---------------- Shiprocket integration ----------------
+SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external"
+
+
+async def _shiprocket_token() -> str:
+    doc = await db.integrations.find_one({"_id": "shiprocket"})
+    if not doc:
+        raise HTTPException(409, "Shiprocket account not linked")
+    expires_at = doc.get("token_expires_at")
+    if doc.get("token") and expires_at:
+        try:
+            if datetime.fromisoformat(expires_at) > datetime.now(timezone.utc) + timedelta(minutes=10):
+                return doc["token"]
+        except ValueError:
+            pass
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            f"{SHIPROCKET_BASE}/auth/login",
+            json={"email": doc["email"], "password": doc["password"]},
+        )
+    if r.status_code != 200:
+        raise HTTPException(502, "Shiprocket login failed — check your API user email/password")
+    token = r.json().get("token")
+    if not token:
+        raise HTTPException(502, "Shiprocket returned no token")
+    await db.integrations.update_one(
+        {"_id": "shiprocket"},
+        {"$set": {
+            "token": token,
+            "token_expires_at": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(),
+        }},
+    )
+    return token
+
+
+@api_router.get("/shiprocket/status")
+async def shiprocket_status():
+    doc = await db.integrations.find_one({"_id": "shiprocket"})
+    return {"connected": bool(doc), "email": doc.get("email") if doc else None}
+
+
+@api_router.post("/shiprocket/connect")
+async def shiprocket_connect(payload: ShiprocketConnectRequest):
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            f"{SHIPROCKET_BASE}/auth/login",
+            json={"email": payload.email, "password": payload.password},
+        )
+    if r.status_code != 200:
+        raise HTTPException(400, "Shiprocket login failed. Use your API user credentials (Shiprocket Panel → Settings → API → Configure).")
+    token = r.json().get("token")
+    if not token:
+        raise HTTPException(502, "Shiprocket returned no token")
+    await db.integrations.update_one(
+        {"_id": "shiprocket"},
+        {"$set": {
+            "provider": "shiprocket",
+            "email": payload.email,
+            "password": payload.password,
+            "token": token,
+            "token_expires_at": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(),
+            "connected_at": now_iso(),
+        }},
+        upsert=True,
+    )
+    return {"connected": True, "email": payload.email}
+
+
+@api_router.post("/shiprocket/disconnect")
+async def shiprocket_disconnect():
+    await db.integrations.delete_one({"_id": "shiprocket"})
+    return {"connected": False}
+
+
+def _map_sr_status(raw: str) -> Optional[str]:
+    s = (raw or "").upper()
+    if "DELIVERED" in s:
+        return "delivered"
+    if "SHIPPED" in s or "IN TRANSIT" in s or "OUT FOR DELIVERY" in s or "PICKED" in s:
+        return "shipped"
+    return None
+
+
+@api_router.post("/shiprocket/sync")
+async def shiprocket_sync():
+    """Pull recent Shiprocket orders and update matching local orders (match by order
+    code — the first 8 chars of the local order id, or the full id — used as the
+    Order ID when creating the shipment manually in Shiprocket)."""
+    token = await _shiprocket_token()
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.get(
+            f"{SHIPROCKET_BASE}/orders",
+            params={"per_page": 100, "sort": "DESC"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if r.status_code == 401:
+        await db.integrations.update_one({"_id": "shiprocket"}, {"$unset": {"token": "", "token_expires_at": ""}})
+        raise HTTPException(502, "Shiprocket session expired — tap Sync again")
+    if r.status_code >= 400:
+        raise HTTPException(502, f"Shiprocket request failed ({r.status_code})")
+
+    sr_orders = r.json().get("data", []) or []
+    by_channel_id = {}
+    for so in sr_orders:
+        cid = str(so.get("channel_order_id") or "").strip().lower().lstrip("#")
+        if cid:
+            by_channel_id[cid] = so
+
+    local = await db.orders.find(
+        {"status": {"$in": ["paid", "shipped"]}}, {"_id": 0}
+    ).to_list(1000)
+
+    updated = []
+    for order in local:
+        oid = str(order["id"]).lower()
+        so = by_channel_id.get(oid) or by_channel_id.get(oid[:8])
+        if not so:
+            continue
+        new_status = _map_sr_status(str(so.get("status", "")))
+        if not new_status or new_status == order.get("status"):
+            continue
+        shipment = (so.get("shipments") or [{}])[0]
+        awb = shipment.get("awb") or shipment.get("awb_code") or ""
+        update = {
+            "status": new_status,
+            "awb": awb,
+            "courier_name": shipment.get("courier") or so.get("courier_name") or "",
+            "shiprocket_order_id": so.get("id"),
+        }
+        if awb:
+            update["tracking_url"] = f"https://shiprocket.co/tracking/{awb}"
+        if new_status == "shipped" and not order.get("shipped_at"):
+            update["shipped_at"] = now_iso()
+        if new_status == "delivered":
+            update["delivered_at"] = now_iso()
+        await db.orders.update_one({"id": order["id"]}, {"$set": update})
+        updated.append({"id": order["id"], "status": new_status, "awb": awb})
+
+    return {
+        "checked": len(local),
+        "shiprocket_orders": len(sr_orders),
+        "updated": updated,
+    }
 
 
 # Razorpay hosted checkout inside a WebView (works in Expo Go)

@@ -14,8 +14,10 @@ import { Feather } from "@expo/vector-icons";
 
 import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
+import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
 import { api, Product } from "@/src/api/client";
+import { openWhatsApp, orderConfirmationMessage, shippingUpdateMessage } from "@/src/utils/whatsapp";
 import { colors, spacing, radius, formatINR } from "@/src/theme/theme";
 
 function formatDate(iso?: string): string {
@@ -37,6 +39,10 @@ function statusMeta(status: string): { label: string; color: string } {
     case "paid":
     case "captured":
       return { label: "Paid", color: colors.success };
+    case "shipped":
+      return { label: "Shipped", color: colors.brand };
+    case "delivered":
+      return { label: "Delivered", color: colors.success };
     case "failed":
       return { label: "Failed", color: colors.error };
     default:
@@ -56,11 +62,24 @@ export default function Admin() {
   const [confirmTarget, setConfirmTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [shiprocket, setShiprocket] = useState<{ connected: boolean; email?: string }>({ connected: false });
+  const [srModal, setSrModal] = useState(false);
+  const [srEmail, setSrEmail] = useState("");
+  const [srPassword, setSrPassword] = useState("");
+  const [srConnecting, setSrConnecting] = useState(false);
+  const [srSyncing, setSrSyncing] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     try {
-      const [prods, ords] = await Promise.all([api.listProducts(), api.listOrders()]);
+      const [prods, ords, sr] = await Promise.all([
+        api.listProducts(),
+        api.listOrders(),
+        api.shiprocketStatus().catch(() => ({ connected: false })),
+      ]);
       setProducts(prods);
       setOrders(ords);
+      setShiprocket(sr);
     } catch {
       toast.show("Failed to load data");
     } finally {
@@ -88,6 +107,121 @@ export default function Admin() {
       setConfirmTarget(null);
     }
   };
+
+  const onSrConnect = async () => {
+    if (!srEmail.trim() || !srPassword) return toast.show("Enter your Shiprocket API user email & password");
+    setSrConnecting(true);
+    try {
+      await api.shiprocketConnect(srEmail.trim(), srPassword);
+      setShiprocket({ connected: true, email: srEmail.trim() });
+      setSrModal(false);
+      setSrPassword("");
+      toast.show("Shiprocket account linked");
+    } catch (e: any) {
+      toast.show(e?.message || "Could not link Shiprocket");
+    } finally {
+      setSrConnecting(false);
+    }
+  };
+
+  const onSrDisconnect = async () => {
+    try {
+      await api.shiprocketDisconnect();
+      setShiprocket({ connected: false });
+      toast.show("Shiprocket account unlinked");
+    } catch {
+      toast.show("Could not unlink");
+    }
+  };
+
+  const onSrSync = async () => {
+    setSrSyncing(true);
+    try {
+      const res = await api.shiprocketSync();
+      if (res.updated.length > 0) {
+        toast.show(`${res.updated.length} order(s) updated from Shiprocket`);
+        await load();
+      } else {
+        toast.show("No shipping updates found in Shiprocket");
+      }
+    } catch (e: any) {
+      toast.show(e?.message || "Sync failed");
+    } finally {
+      setSrSyncing(false);
+    }
+  };
+
+  const onSetStatus = async (order: any, status: string) => {
+    setStatusUpdating(order.id);
+    try {
+      const updated = await api.updateOrderStatus(order.id, { status });
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+      toast.show(`Order marked ${status}`);
+      if (status === "shipped") {
+        openWhatsApp(shippingUpdateMessage(updated), updated.customer?.phone);
+      }
+    } catch {
+      toast.show("Could not update status");
+    } finally {
+      setStatusUpdating(null);
+    }
+  };
+
+  const onWhatsApp = (order: any) => {
+    const shippedLike = order.status === "shipped" || order.status === "delivered";
+    const text = shippedLike ? shippingUpdateMessage(order) : orderConfirmationMessage(order);
+    openWhatsApp(text, order.customer?.phone);
+  };
+
+  const ShiprocketCard = (
+    <View style={styles.srCard} testID="shiprocket-card">
+      <View style={styles.srTop}>
+        <View style={styles.srIconWrap}>
+          <Feather name="truck" size={18} color={colors.brand} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText variant="semibold" style={styles.srTitle}>
+            Shiprocket
+          </AppText>
+          <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.srSub}>
+            {shiprocket.connected
+              ? `Linked · ${shiprocket.email}`
+              : "Link your account to sync shipping status"}
+          </AppText>
+        </View>
+        {shiprocket.connected ? (
+          <Pressable testID="shiprocket-unlink" onPress={onSrDisconnect} hitSlop={8}>
+            <AppText variant="semibold" color={colors.error} style={styles.srAction}>
+              Unlink
+            </AppText>
+          </Pressable>
+        ) : (
+          <Pressable testID="shiprocket-link" onPress={() => setSrModal(true)} hitSlop={8} style={styles.srLinkBtn}>
+            <AppText variant="semibold" color={colors.onBrand} style={styles.srAction}>
+              Link
+            </AppText>
+          </Pressable>
+        )}
+      </View>
+      {shiprocket.connected && (
+        <>
+          <Button
+            testID="shiprocket-sync"
+            label={srSyncing ? "Syncing…" : "Sync shipping status"}
+            variant="secondary"
+            onPress={onSrSync}
+            loading={srSyncing}
+            style={styles.srSyncBtn}
+          />
+          <AppText variant="body" color={colors.muted} style={styles.srHint}>
+            When creating a shipment in Shiprocket, use the order code (e.g. #1A2B3C4D) as the
+            Order ID. Sync marks matching orders Shipped/Delivered and opens WhatsApp so you can
+            send tracking to the customer.
+          </AppText>
+        </>
+      )}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -195,6 +329,7 @@ export default function Admin() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 40, paddingTop: spacing.sm }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={ShiprocketCard}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           ListEmptyComponent={
             <View style={styles.center}>
@@ -262,6 +397,54 @@ export default function Admin() {
                     {formatINR(item.amount)}
                   </AppText>
                 </View>
+
+                {(item.awb || item.courier_name) && (
+                  <View style={styles.orderRow}>
+                    <Feather name="truck" size={13} color={colors.muted} />
+                    <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.orderMetaText}>
+                      {[item.courier_name, item.awb ? `AWB ${item.awb}` : ""].filter(Boolean).join(" · ")}
+                    </AppText>
+                  </View>
+                )}
+
+                <View style={styles.orderActions}>
+                  <Pressable
+                    testID={`whatsapp-${item.id}`}
+                    onPress={() => onWhatsApp(item)}
+                    style={styles.waBtn}
+                  >
+                    <Feather name="message-circle" size={15} color={colors.onBrand} />
+                    <AppText variant="semibold" color={colors.onBrand} style={styles.actionText}>
+                      {item.status === "shipped" || item.status === "delivered"
+                        ? "Send tracking"
+                        : "Confirm order"}
+                    </AppText>
+                  </Pressable>
+                  {item.status === "paid" && (
+                    <Pressable
+                      testID={`mark-shipped-${item.id}`}
+                      onPress={() => onSetStatus(item, "shipped")}
+                      style={styles.statusBtn}
+                      disabled={statusUpdating === item.id}
+                    >
+                      <AppText variant="semibold" color={colors.onSurface} style={styles.actionText}>
+                        {statusUpdating === item.id ? "Updating…" : "Mark Shipped"}
+                      </AppText>
+                    </Pressable>
+                  )}
+                  {item.status === "shipped" && (
+                    <Pressable
+                      testID={`mark-delivered-${item.id}`}
+                      onPress={() => onSetStatus(item, "delivered")}
+                      style={styles.statusBtn}
+                      disabled={statusUpdating === item.id}
+                    >
+                      <AppText variant="semibold" color={colors.onSurface} style={styles.actionText}>
+                        {statusUpdating === item.id ? "Updating…" : "Mark Delivered"}
+                      </AppText>
+                    </Pressable>
+                  )}
+                </View>
               </View>
             );
           }}
@@ -277,6 +460,54 @@ export default function Admin() {
           />
         </View>
       )}
+
+      <Modal visible={srModal} transparent animationType="fade" onRequestClose={() => setSrModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <AppText variant="displaySemiBold" style={styles.modalTitle}>
+              Link Shiprocket
+            </AppText>
+            <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.modalText}>
+              Enter your Shiprocket API user credentials (Shiprocket Panel → Settings → API →
+              Configure). This is separate from your main Shiprocket login.
+            </AppText>
+            <FormField
+              testID="sr-email"
+              label="API user email"
+              value={srEmail}
+              onChangeText={setSrEmail}
+              placeholder="api-user@yourstore.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <FormField
+              testID="sr-password"
+              label="API user password"
+              value={srPassword}
+              onChangeText={setSrPassword}
+              placeholder="••••••••"
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <View style={styles.modalActions}>
+              <Button
+                testID="sr-cancel"
+                label="Cancel"
+                variant="secondary"
+                onPress={() => setSrModal(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                testID="sr-connect"
+                label="Link account"
+                onPress={onSrConnect}
+                loading={srConnecting}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!confirmTarget} transparent animationType="fade" onRequestClose={() => setConfirmTarget(null)}>
         <View style={styles.modalOverlay}>
@@ -378,6 +609,72 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   orderTotal: { fontSize: 16 },
+  orderActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  waBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 44,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: "#25D366",
+  },
+  statusBtn: {
+    height: 44,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionText: { fontSize: 13, letterSpacing: 0.2 },
+  srCard: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  srTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  srIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  srTitle: { fontSize: 15 },
+  srSub: { fontSize: 12, marginTop: 2 },
+  srAction: { fontSize: 13 },
+  srLinkBtn: {
+    height: 40,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
+    backgroundColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  srSyncBtn: {
+    marginTop: spacing.lg,
+    height: 44,
+  },
+  srHint: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: spacing.md,
+  },
   center: {
     paddingVertical: spacing["3xl"] * 2,
     alignItems: "center",
