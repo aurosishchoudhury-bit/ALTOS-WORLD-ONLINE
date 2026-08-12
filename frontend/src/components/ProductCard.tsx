@@ -8,7 +8,7 @@ import AppText from "./AppText";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 import { Product } from "@/src/api/client";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo } from "@/src/utils/pricing";
+import { getPriceInfo, discountPercent } from "@/src/utils/pricing";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - spacing.lg * 2 - spacing.lg) / 2;
@@ -61,9 +61,14 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
           {formatINR(priceInfo.unit)}
         </AppText>
         {priceInfo.compareAt !== null && (
-          <AppText variant="body" color={colors.muted} style={styles.mrp}>
-            {formatINR(priceInfo.compareAt)}
-          </AppText>
+          <>
+            <AppText variant="body" color={colors.muted} style={styles.mrp}>
+              {formatINR(priceInfo.compareAt)}
+            </AppText>
+            <AppText variant="semibold" color={colors.success} style={styles.discount}>
+              {discountPercent(priceInfo)}% OFF
+            </AppText>
+          </>
         )}
       </View>
     </Pressable>

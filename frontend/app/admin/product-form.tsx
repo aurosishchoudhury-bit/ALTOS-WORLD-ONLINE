@@ -202,15 +202,15 @@ export default function ProductForm() {
 
         <FormField
           testID="form-offer-price"
-          label="Offer price for regular customers (₹, optional)"
+          label="Selling price for non-Altos customers (₹, optional)"
           value={offerPrice}
           onChangeText={setOfferPrice}
           placeholder="Leave empty to charge MRP"
           keyboardType="decimal-pad"
         />
         <AppText variant="body" color={colors.muted} style={styles.hint}>
-          DP price is shown only to verified Altos ID holders. Regular customers see MRP, or this
-          offer price when set.
+          DP price is shown only to verified Altos ID holders. Non-Altos customers see MRP, or
+          this selling price with a discount badge when set.
         </AppText>
 
         <View style={styles.priceRow}>
