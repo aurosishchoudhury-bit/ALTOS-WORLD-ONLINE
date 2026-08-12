@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  TextInput,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,7 +22,7 @@ import ProductCard from "@/src/components/ProductCard";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { api, Product } from "@/src/api/client";
-import { colors, spacing, radius } from "@/src/theme/theme";
+import { colors, spacing, radius, fonts } from "@/src/theme/theme";
 
 const { width } = Dimensions.get("window");
 const HERO = "https://images.unsplash.com/photo-1526235591527-15084c256bad";
@@ -39,6 +40,7 @@ export default function Storefront() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async (category: string) => {
     try {
@@ -49,7 +51,7 @@ export default function Storefront() {
       ]);
       setProducts(prods);
       setCategories(cats);
-    } catch (e) {
+    } catch {
       setError(true);
     } finally {
       setLoading(false);
@@ -74,6 +76,15 @@ export default function Storefront() {
 
   const chips = ["All", ...categories];
 
+  const query = search.trim().toLowerCase();
+  const visible = query
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query),
+      )
+    : products;
+
   const Header = (
     <View>
       <View style={[styles.logoBar, { paddingTop: insets.top + spacing.md }]}>
@@ -95,6 +106,28 @@ export default function Storefront() {
           <AppText variant="body" color={colors.onSurfaceInverse} style={styles.heroSub}>
             Pure, plant-powered wellness delivered to your door.
           </AppText>
+        </View>
+      </View>
+
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={18} color={colors.muted} />
+          <TextInput
+            testID="search-input"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search products"
+            placeholderTextColor={colors.muted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {search.length > 0 && (
+            <Pressable testID="search-clear" onPress={() => setSearch("")} hitSlop={8}>
+              <Feather name="x" size={18} color={colors.muted} />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -141,10 +174,11 @@ export default function Storefront() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={products}
+        data={visible}
         keyExtractor={(item) => item.id}
         numColumns={2}
         ListHeaderComponent={Header}
+        keyboardShouldPersistTaps="handled"
         columnWrapperStyle={styles.columnWrap}
         contentContainerStyle={{ paddingBottom: spacing["3xl"] }}
         showsVerticalScrollIndicator={false}
@@ -176,6 +210,18 @@ export default function Storefront() {
                 <Pressable onPress={() => load(active)} testID="retry-button">
                   <AppText variant="semibold" color={colors.brand}>
                     Tap to retry
+                  </AppText>
+                </Pressable>
+              </>
+            ) : query ? (
+              <>
+                <Feather name="search" size={28} color={colors.muted} />
+                <AppText variant="displayMedium" style={styles.emptyTitle}>
+                  No results for &ldquo;{search.trim()}&rdquo;
+                </AppText>
+                <Pressable onPress={() => setSearch("")} testID="clear-search-empty">
+                  <AppText variant="semibold" color={colors.brand}>
+                    Clear search
                   </AppText>
                 </Pressable>
               </>
@@ -236,7 +282,29 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   chipRow: {
+    marginTop: spacing.md,
+  },
+  searchWrap: {
+    paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    height: 48,
+    backgroundColor: colors.surface,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.text,
+    fontSize: 15,
+    color: colors.onSurface,
+    paddingVertical: 0,
   },
   chipRowContent: {
     paddingHorizontal: spacing.lg,
