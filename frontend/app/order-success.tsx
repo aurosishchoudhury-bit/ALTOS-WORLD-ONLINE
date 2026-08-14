@@ -23,7 +23,7 @@ export default function OrderSuccess() {
   const [order, setOrder] = useState<any>(null);
 
   const bvMessage = order
-    ? `Hi Altos World! Payment is done for my order ${orderCode(order.id)} (${formatINR(order.amount)}). Kindly generate BV ASAP. Name: ${order.customer?.name || ""}, Phone: ${order.customer?.phone || ""}.`
+    ? `Hi Altos World! Payment is done for my order ${orderCode(order.id)} (${formatINR(order.amount)}). Kindly generate BV ASAP. Altos ID: ${order.customer?.altos_id || "-"}, Name: ${order.customer?.name || ""}, Phone: ${order.customer?.phone || ""}.`
     : "";
 
   useEffect(() => {
@@ -78,7 +78,8 @@ export default function OrderSuccess() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.delay(520).duration(500)} style={styles.bvSection}>
+        {order?.altos_verified && (
+          <Animated.View entering={FadeInDown.delay(520).duration(500)} style={styles.bvSection}>
           <View style={styles.bvOption} testID="bv-option-dispatch">
             <View style={styles.bvBadge}>
               <AppText variant="semibold" color={colors.brand} style={styles.bvBadgeText}>
@@ -110,7 +111,8 @@ export default function OrderSuccess() {
             </View>
             <Feather name="message-circle" size={20} color="#25D366" />
           </Pressable>
-        </Animated.View>
+          </Animated.View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>

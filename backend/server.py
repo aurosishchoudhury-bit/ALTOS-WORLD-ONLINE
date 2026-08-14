@@ -85,6 +85,7 @@ class Customer(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     phone: str = Field(min_length=6, max_length=20)
     address: str = Field(min_length=5, max_length=600)
+    altos_id: str = Field(default="", max_length=60)
 
 
 class CreateOrderRequest(BaseModel):

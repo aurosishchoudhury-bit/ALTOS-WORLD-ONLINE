@@ -29,6 +29,7 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [altosId, setAltosId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export default function Checkout() {
     if (!emailRe.test(email.trim())) return "Please enter a valid email";
     if (phone.trim().length < 6) return "Please enter a valid phone number";
     if (address.trim().length < 5) return "Please enter a delivery address";
+    if (verified && !altosId.trim()) return "Please enter your Altos ID";
     return null;
   };
 
@@ -60,6 +62,7 @@ export default function Checkout() {
         email: email.trim(),
         phone: phone.trim(),
         address: address.trim(),
+        altos_id: verified ? altosId.trim() : "",
       };
       const order = await api.createOrder(items, customer, verified);
 
@@ -162,6 +165,16 @@ export default function Checkout() {
           numberOfLines={3}
           style={styles.addressInput}
         />
+        {verified && (
+          <FormField
+            testID="input-altos-id"
+            label="Altos ID (for BV generation)"
+            value={altosId}
+            onChangeText={setAltosId}
+            placeholder="Your Altos member ID"
+            autoCapitalize="characters"
+          />
+        )}
 
         <View style={styles.divider} />
 
