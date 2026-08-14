@@ -91,7 +91,7 @@ export default function ProductDetail() {
         contentContainerStyle={{ paddingBottom: 120 }}
       >
         <View style={styles.imageWrap}>
-          <Image source={{ uri: product.image }} style={styles.image} contentFit="cover" />
+          <Image source={{ uri: resolveImageUri(product.image) }} style={styles.image} contentFit="cover" />
           <Pressable
             testID="back-button"
             onPress={() => router.back()}

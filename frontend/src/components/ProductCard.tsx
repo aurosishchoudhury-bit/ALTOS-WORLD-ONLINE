@@ -36,7 +36,7 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
     >
       <View style={styles.imageWrap}>
         <Image
-          source={{ uri: product.image }}
+          source={{ uri: resolveImageUri(product.image) }}
           style={styles.image}
           contentFit="cover"
           transition={250}

@@ -1,6 +1,10 @@
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 export const API = `${BASE}/api`;
 
+/** Product images uploaded via the app are stored as relative paths (/api/files/...). */
+export const resolveImageUri = (uri?: string): string =>
+  uri && uri.startsWith("/") ? `${BASE}${uri}` : uri || "";
+
 export type Product = {
   id: string;
   name: string;

@@ -282,7 +282,7 @@ export default function Admin() {
           }
           renderItem={({ item }) => (
             <View style={styles.row} testID={`admin-product-${item.id}`}>
-              <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
+              <Image source={{ uri: resolveImageUri(item.image) }} style={styles.thumb} contentFit="cover" />
               <View style={styles.rowBody}>
                 <AppText variant="displayMedium" style={styles.name} numberOfLines={1}>
                   {item.name}

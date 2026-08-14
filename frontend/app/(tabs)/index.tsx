@@ -244,7 +244,7 @@ export default function Storefront() {
                   onPress={() => router.push(`/product/${p.id}`)}
                   style={styles.bsCard}
                 >
-                  <Image source={{ uri: p.image }} style={styles.bsImage} contentFit="cover" />
+                  <Image source={{ uri: resolveImageUri(p.image) }} style={styles.bsImage} contentFit="cover" />
                   <AppText variant="medium" numberOfLines={2} style={styles.bsName}>
                     {p.name}
                   </AppText>

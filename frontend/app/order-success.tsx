@@ -47,7 +47,7 @@ export default function OrderSuccess() {
 
         <Animated.View entering={FadeInDown.delay(280).duration(500)}>
           <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.sub}>
-            Your order has been placed successfully. We'll send confirmation to your email shortly.
+            Your order has been placed successfully. We&rsquo;ll send confirmation to your email shortly.
           </AppText>
         </Animated.View>
 

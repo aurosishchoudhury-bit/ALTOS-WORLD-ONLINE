@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, Switch } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Switch, Platform, Linking } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -10,7 +11,7 @@ import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
-import { api } from "@/src/api/client";
+import { api, API, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Home Care", "Personal Care"];
@@ -24,6 +25,59 @@ export default function ProductForm() {
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadPicked = async (asset: ImagePicker.ImagePickerAsset) => {
+    setUploading(true);
+    try {
+      const name = asset.fileName || `photo_${Date.now()}.jpg`;
+      const type = asset.mimeType || "image/jpeg";
+      const form = new FormData();
+      if (Platform.OS === "web") {
+        const blob = await (await fetch(asset.uri)).blob();
+        form.append("file", blob, name);
+      } else {
+        form.append("file", { uri: asset.uri, name, type } as any);
+      }
+      const res = await fetch(`${API}/upload`, { method: "POST", body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.detail || "Upload failed");
+      }
+      const data = await res.json();
+      setImage(data.image_url);
+      toast.show("Image uploaded");
+    } catch (e: any) {
+      toast.show(e?.message || "Could not upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      if (perm.canAskAgain || perm.status === "undetermined") {
+        const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!req.granted) {
+          toast.show("Gallery access is needed to pick a product photo");
+          return;
+        }
+      } else {
+        toast.show("Gallery access denied — enable it in Settings");
+        Linking.openSettings().catch(() => {});
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      allowsMultipleSelection: false,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      await uploadPicked(result.assets[0]);
+    }
+  };
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -139,7 +193,7 @@ export default function ProductForm() {
         contentContainerStyle={styles.scroll}
       >
         {image ? (
-          <Image source={{ uri: image }} style={styles.preview} contentFit="cover" />
+          <Image source={{ uri: resolveImageUri(image) }} style={styles.preview} contentFit="cover" />
         ) : (
           <View style={[styles.preview, styles.previewEmpty]}>
             <Feather name="image" size={24} color={colors.muted} />
@@ -148,6 +202,22 @@ export default function ProductForm() {
             </AppText>
           </View>
         )}
+
+        <Pressable
+          testID="pick-gallery-button"
+          onPress={pickFromGallery}
+          disabled={uploading}
+          style={styles.galleryBtn}
+        >
+          {uploading ? (
+            <ActivityIndicator color={colors.brand} size="small" />
+          ) : (
+            <Feather name="image" size={17} color={colors.brand} />
+          )}
+          <AppText variant="semibold" color={colors.brand} style={styles.galleryBtnText}>
+            {uploading ? "Uploading…" : "Add image from gallery"}
+          </AppText>
+        </Pressable>
 
         <FormField
           testID="form-name"
@@ -158,7 +228,7 @@ export default function ProductForm() {
         />
         <FormField
           testID="form-image"
-          label="Image URL"
+          label="Image URL (or use gallery above)"
           value={image}
           onChangeText={setImage}
           placeholder="https://..."
@@ -352,6 +422,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   previewEmpty: { alignItems: "center", justifyContent: "center" },
+  galleryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+  },
+  galleryBtnText: { fontSize: 14 },
   label: {
     fontSize: 12,
     letterSpacing: 0.4,

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, APIRouter, HTTPException, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, Response
+from fastapi.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,6 +15,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 
 import httpx
+import requests
 import razorpay
 
 ROOT_DIR = Path(__file__).parent
@@ -48,6 +50,58 @@ logger = logging.getLogger(__name__)
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------- Emergent Object Storage ----------------
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+APP_NAME = "altos-world"
+storage_key = None
+
+
+def init_storage():
+    global storage_key
+    if storage_key:
+        return storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    storage_key = resp.json()["storage_key"]
+    return storage_key
+
+
+def _put_object(path: str, data: bytes, content_type: str) -> dict:
+    global storage_key
+    key = init_storage()
+    resp = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data,
+        timeout=120,
+    )
+    if resp.status_code == 503:  # stale storage key — re-init once
+        storage_key = None
+        key = init_storage()
+        resp = requests.put(
+            f"{STORAGE_URL}/objects/{path}",
+            headers={"X-Storage-Key": key, "Content-Type": content_type},
+            data=data,
+            timeout=120,
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _get_object(path: str):
+    global storage_key
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 503:
+        storage_key = None
+        key = init_storage()
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
 # ---------------- Models ----------------
@@ -175,6 +229,45 @@ async def delete_product(product_id: str):
     return {"ok": True}
 
 
+# ---------------- Image upload (Emergent Object Storage) ----------------
+ALLOWED_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
+@api_router.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    content_type = (file.content_type or "").lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, "Only JPG, PNG or WEBP images are allowed")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "Image too large (max 5 MB)")
+    path = f"{APP_NAME}/uploads/products/{uuid.uuid4().hex}.{ALLOWED_IMAGE_TYPES[content_type]}"
+    try:
+        result = await run_in_threadpool(_put_object, path, data, content_type)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 502
+        if status == 402:
+            raise HTTPException(402, "Storage credits exhausted — image uploads paused")
+        raise HTTPException(502, "Image upload failed, please try again")
+    return {"path": result["path"], "image_url": f"/api/files/{result['path']}"}
+
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str):
+    if not path.startswith(f"{APP_NAME}/"):
+        raise HTTPException(404, "File not found")
+    try:
+        content, content_type = await run_in_threadpool(_get_object, path)
+    except requests.HTTPError:
+        raise HTTPException(404, "File not found")
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 # ---------------- Checkout routes ----------------
 def _unit_price(product: dict, altos_verified: bool) -> float:
     """DP price for verified Altos ID holders; offer price or MRP for everyone else."""
@@ -205,8 +298,11 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
     total_weight = 0.0
     total_bv = 0.0
     snapshot = []
+    ids = [item.id for item in items]
+    docs = await db.products.find({"id": {"$in": ids}}, {"_id": 0}).to_list(len(ids))
+    products = {p["id"]: p for p in docs}
     for item in items:
-        product = await db.products.find_one({"id": item.id}, {"_id": 0})
+        product = products.get(item.id)
         if not product:
             raise HTTPException(400, f"Unknown product: {item.id}")
         grams = float(product.get("weight_grams") or 0)
@@ -650,6 +746,12 @@ SEED_PRODUCTS = [
 
 @app.on_event("startup")
 async def seed_data():
+    try:
+        await run_in_threadpool(init_storage)
+        logger.info("Object storage initialised")
+    except Exception as e:
+        logger.warning("Object storage init failed: %s", e)
+
     count = await db.products.count_documents({})
     if count < len(SEED_PRODUCTS):
         for p in SEED_PRODUCTS:

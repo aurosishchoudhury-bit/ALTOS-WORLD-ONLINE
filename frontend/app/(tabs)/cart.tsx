@@ -61,7 +61,7 @@ export default function CartScreen() {
         {lines.map((line, index) => (
           <View key={line.product.id}>
             <View style={styles.item} testID={`cart-item-${line.product.id}`}>
-              <Image source={{ uri: line.product.image }} style={styles.thumb} contentFit="cover" />
+              <Image source={{ uri: resolveImageUri(line.product.image) }} style={styles.thumb} contentFit="cover" />
               <View style={styles.itemBody}>
                 <AppText variant="displayMedium" style={styles.itemName} numberOfLines={2}>
                   {line.product.name}

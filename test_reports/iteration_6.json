@@ -1,0 +1,32 @@
+{
+  "summary": "Backend-only regression on the checkout _price_cart batched $in refactor. Created /app/backend/tests/test_checkout_batched_pricing.py with 8 focused tests: products+categories smoke, multi-item (3 SKUs, mixed qtys) non-verified pricing charging MRP/offer with correct subtotal/shipping/weight/total_bv=0, same cart verified charging DP with correct total_bv sum, unknown product id in a multi-item cart -> 400 'Unknown product', heavy-item cap (temporarily bumped Aloe & Cucumber Gel to weight_grams=500 -> qty 3 = 400, qty 2 = 200; reverted to 180), and demo-complete + GET /orders/{id} snapshot verifying per-line unit_price/line_total/bv and order-level total_bv. Result: 8/8 PASSED (pytest-xdist parallel, 1.37s). Product state confirmed reverted post-run (Aloe weight_grams=180.0, price=399, mrp=549, bv=25). Test orders (2 created with email test_batched_pricing@altos.test) were cleaned from the orders collection. The N+1 -> single-$in refactor of _price_cart is functionally correct: pricing, shipping tiers, weight totals, BV aggregation, unknown-product 400, heavy-item cap, and paid-order snapshot all match iteration 5-6 baseline values.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_checkout_batched_pricing.py",
+    "/app/test_reports/pytest/pytest_batched_pricing.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:_price_cart correctly extracts ids upfront and issues a single find({'id': {'$in': ids}}) with _id excluded and to_list(len(ids)); the products dict lookup preserves per-item error semantics (unknown id still raises HTTP 400 with the offending id in the message).",
+    "Heavy-item cap check (weight_grams >= 500) is evaluated per-item against the in-memory product map -- verified end-to-end (qty 3 rejected, qty 2 accepted).",
+    "Snapshot fields (unit_price, quantity, line_total, weight_grams, bv, image, name) are all populated from the mapped product dict; order doc total_bv is zeroed for non-verified paths as before -- verified.",
+    "No behavioural regression vs iteration_5 fixtures: Aloe DP=399, MRP=549, bv=25, weight_grams=180 all round-trip through create-order/demo-complete/get order unchanged."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_checkout_batched_pricing.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "During tests 5 orders were created with customer.email='test_batched_pricing@altos.test' (3 auto-cleaned by fixture teardown, 2 remaining were cleaned via mongosh deleteMany post-run -> 0 remaining). Aloe & Cucumber Gel weight_grams temporarily bumped 180 -> 500 for heavy-item cap tests and REVERTED to 180 by class teardown (verified via GET /api/products).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_checkout_batched_pricing.py is the canonical regression suite for the _price_cart batched-query path. Uses EXPO_PUBLIC_BACKEND_URL from frontend/.env fallback. Cleanup: module-scoped mongo_orders fixture deletes orders by test email; class-scoped _prep fixture in TestHeavyItemLimit reverts weight_grams to seed value. Note: with pytest-xdist, orders created by workers other than the one running mongo_orders teardown may need manual mongosh cleanup as a safety net (documented in the test file)."
+}
