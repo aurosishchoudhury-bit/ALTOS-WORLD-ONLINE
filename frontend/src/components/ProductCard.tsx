@@ -71,6 +71,17 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
           </>
         )}
       </View>
+      {(product.rating_count || 0) > 0 && (
+        <View style={styles.ratingRow}>
+          <Feather name="star" size={11} color="#E8A93C" />
+          <AppText variant="semibold" style={styles.ratingText}>
+            {product.rating_avg}
+          </AppText>
+          <AppText variant="body" color={colors.muted} style={styles.ratingText}>
+            ({product.rating_count})
+          </AppText>
+        </View>
+      )}
       {product.mrp > 0 && (
         <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.packingLine}>
           {product.weight ? `${product.weight} · ` : ""}MRP {formatINR(product.mrp)}
@@ -150,4 +161,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  ratingText: { fontSize: 11 },
 });

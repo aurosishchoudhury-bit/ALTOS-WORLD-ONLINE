@@ -128,6 +128,20 @@ class ProductCreate(ProductBase):
 class Product(ProductBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: str = Field(default_factory=now_iso)
+    rating_avg: float = 0  # computed from reviews, not stored
+    rating_count: int = 0
+
+
+class ReviewIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(default="", max_length=1000)
+
+
+class Review(ReviewIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    product_id: str
+    created_at: str = Field(default_factory=now_iso)
 
 
 class CartItemIn(BaseModel):
@@ -178,13 +192,25 @@ async def root():
     return {"message": "Altos World Store API", "demo_mode": DEMO_MODE}
 
 
+async def _rating_map(product_ids: List[str]) -> dict:
+    pipeline = [
+        {"$match": {"product_id": {"$in": product_ids}}},
+        {"$group": {"_id": "$product_id", "avg": {"$avg": "$rating"}, "count": {"$sum": 1}}},
+    ]
+    out = {}
+    async for row in db.reviews.aggregate(pipeline):
+        out[row["_id"]] = {"rating_avg": round(row["avg"], 1), "rating_count": row["count"]}
+    return out
+
+
 @api_router.get("/products", response_model=List[Product])
 async def list_products(category: Optional[str] = None):
     query = {}
     if category and category.lower() != "all":
         query["category"] = category
     docs = await db.products.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    return [Product(**d) for d in docs]
+    ratings = await _rating_map([d["id"] for d in docs])
+    return [Product(**{**d, **ratings.get(d["id"], {})}) for d in docs]
 
 
 BASE_CATEGORIES = ["Supplements", "Skincare", "Home Care", "Personal Care"]
@@ -201,7 +227,29 @@ async def get_product(product_id: str):
     doc = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Product not found")
-    return Product(**doc)
+    ratings = await _rating_map([product_id])
+    return Product(**{**doc, **ratings.get(product_id, {})})
+
+
+# ---------------- Reviews ----------------
+@api_router.get("/products/{product_id}/reviews")
+async def list_reviews(product_id: str):
+    reviews = await db.reviews.find({"product_id": product_id}, {"_id": 0}).sort(
+        "created_at", -1
+    ).to_list(500)
+    ratings = await _rating_map([product_id])
+    summary = ratings.get(product_id, {"rating_avg": 0, "rating_count": 0})
+    return {"reviews": reviews, **summary}
+
+
+@api_router.post("/products/{product_id}/reviews")
+async def add_review(product_id: str, payload: ReviewIn):
+    product = await db.products.find_one({"id": product_id}, {"_id": 0, "id": 1})
+    if not product:
+        raise HTTPException(404, "Product not found")
+    review = Review(product_id=product_id, **payload.dict())
+    await db.reviews.insert_one(review.dict())
+    return review.dict()
 
 
 @api_router.post("/products", response_model=Product)

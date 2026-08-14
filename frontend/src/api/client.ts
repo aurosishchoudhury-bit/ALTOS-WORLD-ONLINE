@@ -20,6 +20,8 @@ export type Product = {
   image: string;
   stock: number;
   featured: boolean;
+  rating_avg?: number;
+  rating_count?: number;
   created_at?: string;
 };
 
@@ -116,6 +118,18 @@ export const api = {
   },
   async listOrders(): Promise<any[]> {
     return handle(await fetch(`${API}/orders`));
+  },
+  async getReviews(productId: string): Promise<{ reviews: any[]; rating_avg: number; rating_count: number }> {
+    return handle(await fetch(`${API}/products/${productId}/reviews`));
+  },
+  async addReview(productId: string, data: { name: string; rating: number; comment: string }) {
+    return handle(
+      await fetch(`${API}/products/${productId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
   },
   async updateOrderStatus(
     orderId: string,

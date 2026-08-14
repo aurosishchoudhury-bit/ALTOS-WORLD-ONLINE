@@ -15,6 +15,8 @@ import { Feather } from "@expo/vector-icons";
 import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
+import Stars from "@/src/components/Stars";
+import FormField from "@/src/components/FormField";
 import { useCart } from "@/src/context/CartContext";
 import { useToast } from "@/src/components/Toast";
 import { api, Product, resolveImageUri } from "@/src/api/client";
@@ -37,11 +39,54 @@ export default function ProductDetail() {
   const [error, setError] = useState(false);
   const [qty, setQty] = useState(1);
 
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [ratingAvg, setRatingAvg] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [revName, setRevName] = useState("");
+  const [revRating, setRevRating] = useState(0);
+  const [revComment, setRevComment] = useState("");
+  const [revSubmitting, setRevSubmitting] = useState(false);
+
+  const loadReviews = async (pid: string) => {
+    try {
+      const data = await api.getReviews(pid);
+      setReviews(data.reviews);
+      setRatingAvg(data.rating_avg);
+      setRatingCount(data.rating_count);
+    } catch {
+      // non-blocking
+    }
+  };
+
+  const submitReview = async () => {
+    if (!product) return;
+    if (!revName.trim()) return toast.show("Please enter your name");
+    if (revRating < 1) return toast.show("Please select a star rating");
+    setRevSubmitting(true);
+    try {
+      await api.addReview(product.id, {
+        name: revName.trim(),
+        rating: revRating,
+        comment: revComment.trim(),
+      });
+      setRevName("");
+      setRevRating(0);
+      setRevComment("");
+      toast.show("Thanks for your review!");
+      await loadReviews(product.id);
+    } catch {
+      toast.show("Could not submit review");
+    } finally {
+      setRevSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
         const p = await api.getProduct(id);
         setProduct(p);
+        loadReviews(id);
       } catch {
         setError(true);
       } finally {
@@ -143,6 +188,86 @@ export default function ProductDetail() {
           <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.description}>
             {product.description}
           </AppText>
+
+          <View style={styles.divider} />
+
+          <View style={styles.reviewsHeader} testID="reviews-section">
+            <AppText variant="displaySemiBold" style={styles.reviewsTitle}>
+              Ratings & Reviews
+            </AppText>
+            {ratingCount > 0 && (
+              <View style={styles.ratingSummary}>
+                <Stars value={ratingAvg} size={15} />
+                <AppText variant="semibold" style={styles.ratingAvgText}>
+                  {ratingAvg}
+                </AppText>
+                <AppText variant="body" color={colors.muted} style={styles.ratingCountText}>
+                  ({ratingCount} review{ratingCount === 1 ? "" : "s"})
+                </AppText>
+              </View>
+            )}
+          </View>
+
+          {reviews.length === 0 ? (
+            <AppText variant="body" color={colors.muted} style={styles.noReviews}>
+              No reviews yet — be the first to review this product.
+            </AppText>
+          ) : (
+            reviews.map((r) => (
+              <View key={r.id} style={styles.reviewCard}>
+                <View style={styles.reviewTop}>
+                  <AppText variant="semibold" style={styles.reviewName}>
+                    {r.name}
+                  </AppText>
+                  <Stars value={r.rating} size={12} />
+                </View>
+                {!!r.comment && (
+                  <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.reviewComment}>
+                    {r.comment}
+                  </AppText>
+                )}
+                <AppText variant="body" color={colors.muted} style={styles.reviewDate}>
+                  {new Date(r.created_at).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </AppText>
+              </View>
+            ))
+          )}
+
+          <View style={styles.writeReview}>
+            <AppText variant="semibold" style={styles.writeTitle}>
+              Write a review
+            </AppText>
+            <View style={styles.starInputRow}>
+              <Stars value={revRating} size={26} onChange={setRevRating} />
+            </View>
+            <FormField
+              testID="review-name"
+              label="Your name"
+              value={revName}
+              onChangeText={setRevName}
+              placeholder="e.g. Priya"
+            />
+            <FormField
+              testID="review-comment"
+              label="Your review (optional)"
+              value={revComment}
+              onChangeText={setRevComment}
+              placeholder="How was the product?"
+              multiline
+              numberOfLines={3}
+            />
+            <Button
+              testID="submit-review"
+              label="Submit Review"
+              variant="secondary"
+              onPress={submitReview}
+              loading={revSubmitting}
+            />
+          </View>
 
           <View style={styles.qtyRow}>
             <AppText variant="semibold" style={styles.qtyLabel}>
@@ -251,6 +376,43 @@ const styles = StyleSheet.create({
   packingLine: {
     fontSize: 13,
     marginTop: spacing.sm,
+  },
+  reviewsHeader: {
+    marginTop: spacing.md,
+  },
+  reviewsTitle: { fontSize: 20 },
+  ratingSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  ratingAvgText: { fontSize: 14 },
+  ratingCountText: { fontSize: 13 },
+  noReviews: { fontSize: 13, marginTop: spacing.md },
+  reviewCard: {
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  reviewTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reviewName: { fontSize: 14 },
+  reviewComment: { fontSize: 13, lineHeight: 19, marginTop: spacing.xs },
+  reviewDate: { fontSize: 11, marginTop: spacing.sm },
+  writeReview: {
+    marginTop: spacing.xl,
+  },
+  writeTitle: { fontSize: 15, marginBottom: spacing.sm },
+  starInputRow: {
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
