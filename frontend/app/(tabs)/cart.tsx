@@ -10,6 +10,7 @@ import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
+import { resolveImageUri } from "@/src/api/client";
 import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 

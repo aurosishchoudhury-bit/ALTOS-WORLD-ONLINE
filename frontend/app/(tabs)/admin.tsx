@@ -16,7 +16,7 @@ import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
-import { api, Product } from "@/src/api/client";
+import { api, Product, resolveImageUri } from "@/src/api/client";
 import { openWhatsApp, orderConfirmationMessage, shippingUpdateMessage } from "@/src/utils/whatsapp";
 import { colors, spacing, radius, formatINR } from "@/src/theme/theme";
 

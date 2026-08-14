@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import AppText from "./AppText";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
-import { Product } from "@/src/api/client";
+import { Product, resolveImageUri } from "@/src/api/client";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { getPriceInfo, discountPercent } from "@/src/utils/pricing";
 

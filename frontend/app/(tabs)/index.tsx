@@ -24,7 +24,7 @@ import WhatsAppFab from "@/src/components/WhatsAppFab";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { api, Product } from "@/src/api/client";
+import { api, Product, resolveImageUri } from "@/src/api/client";
 import { getPriceInfo } from "@/src/utils/pricing";
 import { colors, spacing, radius, fonts, formatINR } from "@/src/theme/theme";
 

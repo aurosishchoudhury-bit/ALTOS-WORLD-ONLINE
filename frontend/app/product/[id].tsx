@@ -17,7 +17,7 @@ import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useToast } from "@/src/components/Toast";
-import { api, Product } from "@/src/api/client";
+import { api, Product, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { getPriceInfo, discountPercent, maxQtyFor, isHeavyItem } from "@/src/utils/pricing";
