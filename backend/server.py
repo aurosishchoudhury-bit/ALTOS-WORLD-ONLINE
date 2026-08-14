@@ -133,10 +133,13 @@ async def list_products(category: Optional[str] = None):
     return [Product(**d) for d in docs]
 
 
+BASE_CATEGORIES = ["Supplements", "Skincare", "Home Care", "Personal Care"]
+
+
 @api_router.get("/categories")
 async def list_categories():
     cats = await db.products.distinct("category")
-    return {"categories": sorted([c for c in cats if c])}
+    return {"categories": sorted({c for c in cats if c} | set(BASE_CATEGORIES))}
 
 
 @api_router.get("/products/{product_id}", response_model=Product)

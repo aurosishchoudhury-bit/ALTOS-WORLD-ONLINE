@@ -13,7 +13,7 @@ import { useToast } from "@/src/components/Toast";
 import { api } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
-const CATEGORY_OPTIONS = ["Supplements", "Skincare"];
+const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Home Care", "Personal Care"];
 
 export default function ProductForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
