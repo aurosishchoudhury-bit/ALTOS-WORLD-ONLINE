@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Pressable, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -8,14 +8,23 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import { api } from "@/src/api/client";
-import { openWhatsApp, orderConfirmationMessage } from "@/src/utils/whatsapp";
-import { colors, spacing, formatINR } from "@/src/theme/theme";
+import {
+  openWhatsApp,
+  orderConfirmationMessage,
+  orderCode,
+  STORE_WHATSAPP,
+} from "@/src/utils/whatsapp";
+import { colors, spacing, radius, formatINR } from "@/src/theme/theme";
 
 export default function OrderSuccess() {
   const { order_id } = useLocalSearchParams<{ order_id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<any>(null);
+
+  const bvMessage = order
+    ? `Hi Altos World! Payment is done for my order ${orderCode(order.id)} (${formatINR(order.amount)}). Kindly generate BV ASAP. Name: ${order.customer?.name || ""}, Phone: ${order.customer?.phone || ""}.`
+    : "";
 
   useEffect(() => {
     if (order_id) {
@@ -25,7 +34,7 @@ export default function OrderSuccess() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeIn.duration(400)} style={styles.checkCircle}>
           <Feather name="check" size={40} color={colors.onBrand} />
         </Animated.View>
@@ -68,7 +77,41 @@ export default function OrderSuccess() {
             </View>
           </Animated.View>
         )}
-      </View>
+
+        <Animated.View entering={FadeInDown.delay(520).duration(500)} style={styles.bvSection}>
+          <View style={styles.bvOption} testID="bv-option-dispatch">
+            <View style={styles.bvBadge}>
+              <AppText variant="semibold" color={colors.brand} style={styles.bvBadgeText}>
+                1
+              </AppText>
+            </View>
+            <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.bvText}>
+              BV will be generated once your product is dispatched.
+            </AppText>
+          </View>
+
+          <Pressable
+            testID="bv-option-instant"
+            onPress={() => openWhatsApp(bvMessage, STORE_WHATSAPP)}
+            style={styles.bvOptionInstant}
+          >
+            <View style={[styles.bvBadge, styles.bvBadgeGreen]}>
+              <AppText variant="semibold" color="#FFFFFF" style={styles.bvBadgeText}>
+                2
+              </AppText>
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="semibold" style={styles.bvInstantTitle}>
+                For instant BV generation, click here
+              </AppText>
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.bvInstantSub}>
+                Sends us a WhatsApp message to generate your BV right away
+              </AppText>
+            </View>
+            <Feather name="message-circle" size={20} color="#25D366" />
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
 
       <View style={styles.footer}>
         {order && (
@@ -96,9 +139,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: spacing.xl,
   },
   checkCircle: {
     width: 88,
@@ -138,4 +182,46 @@ const styles = StyleSheet.create({
   whatsappBtn: {
     backgroundColor: "#25D366",
   },
+  bvSection: {
+    width: "100%",
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  bvOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  bvOptionInstant: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderWidth: 1.5,
+    borderColor: "#25D366",
+    borderRadius: radius.lg,
+    backgroundColor: "#F0FBF4",
+  },
+  bvBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bvBadgeGreen: {
+    backgroundColor: "#25D366",
+    borderColor: "#25D366",
+  },
+  bvBadgeText: { fontSize: 13 },
+  bvText: { flex: 1, fontSize: 13, lineHeight: 19 },
+  bvInstantTitle: { fontSize: 14 },
+  bvInstantSub: { fontSize: 12, marginTop: 2 },
 });
