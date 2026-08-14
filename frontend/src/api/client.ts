@@ -9,6 +9,7 @@ export type Product = {
   mrp: number;
   offer_price: number;
   bestseller?: boolean;
+  bv?: number;
   weight: string;
   weight_grams?: number;
   category: string;

@@ -31,6 +31,7 @@ export default function ProductForm() {
   const [offerPrice, setOfferPrice] = useState("");
   const [weight, setWeight] = useState("");
   const [weightGrams, setWeightGrams] = useState("");
+  const [bv, setBv] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
   const [stock, setStock] = useState("100");
@@ -48,6 +49,7 @@ export default function ProductForm() {
           setOfferPrice(p.offer_price ? String(p.offer_price) : "");
           setWeight(p.weight || "");
           setWeightGrams(p.weight_grams ? String(p.weight_grams) : "");
+          setBv(p.bv ? String(p.bv) : "");
           setCategory(p.category);
           setImage(p.image);
           setStock(String(p.stock));
@@ -87,6 +89,7 @@ export default function ProductForm() {
       offer_price: offerPrice.trim() && !isNaN(offerNum) ? offerNum : 0,
       weight: weight.trim(),
       weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
+      bv: bv.trim() && !isNaN(parseFloat(bv)) ? parseFloat(bv) : 0,
       category: category.trim() || "Supplements",
       image: image.trim(),
       stock: isNaN(stockNum) ? 0 : stockNum,
@@ -252,6 +255,14 @@ export default function ProductForm() {
           value={weightGrams}
           onChangeText={setWeightGrams}
           placeholder="e.g. 250"
+          keyboardType="decimal-pad"
+        />
+        <FormField
+          testID="form-bv"
+          label="BV — Business Volume (for Altos ID holders)"
+          value={bv}
+          onChangeText={setBv}
+          placeholder="e.g. 30"
           keyboardType="decimal-pad"
         />
         <AppText variant="body" color={colors.muted} style={styles.hint}>

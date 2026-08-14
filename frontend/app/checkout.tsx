@@ -22,7 +22,7 @@ export default function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { lines, subtotal, shipping, total, totalWeightGrams, clear } = useCart();
+  const { lines, subtotal, shipping, total, totalWeightGrams, totalBV, clear } = useCart();
   const { verified } = useAltosAuth();
 
   const [name, setName] = useState("");
@@ -211,6 +211,16 @@ export default function Checkout() {
             </AppText>
           )}
         </View>
+        {verified && totalBV > 0 && (
+          <View style={styles.summaryRow}>
+            <AppText variant="body" color={colors.onSurfaceSecondary}>
+              Total BV
+            </AppText>
+            <AppText variant="semibold" color={colors.brand} testID="checkout-total-bv">
+              {totalBV} BV
+            </AppText>
+          </View>
+        )}
         <View style={[styles.summaryRow, { marginTop: spacing.sm }]}>
           <AppText variant="displaySemiBold" style={styles.totalText}>
             Total

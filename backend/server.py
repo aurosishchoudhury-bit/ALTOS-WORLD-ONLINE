@@ -58,6 +58,7 @@ class ProductBase(BaseModel):
     mrp: float = 0  # Maximum Retail Price; what regular (non-verified) customers pay
     offer_price: float = 0  # Optional offer for regular customers (admin-set); 0 = no offer
     bestseller: bool = False  # Featured in the Bestsellers row on home
+    bv: float = 0  # Business Volume points (visible to Altos ID holders)
     weight: str = ""  # display text, e.g. "60 capsules", "30ml", "250g"
     weight_grams: float = 0  # numeric weight used for shipping calculation
     category: str = "Supplements"
@@ -199,6 +200,7 @@ def _shipping_charge(total_weight_g: float) -> float:
 async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
     subtotal = 0.0
     total_weight = 0.0
+    total_bv = 0.0
     snapshot = []
     for item in items:
         product = await db.products.find_one({"id": item.id}, {"_id": 0})
@@ -214,6 +216,8 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
         line = unit * item.quantity
         subtotal += line
         total_weight += grams * item.quantity
+        item_bv = float(product.get("bv") or 0)
+        total_bv += item_bv * item.quantity
         snapshot.append({
             "id": item.id,
             "name": product["name"],
@@ -222,15 +226,16 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
             "quantity": item.quantity,
             "line_total": line,
             "weight_grams": grams,
+            "bv": item_bv,
         })
     shipping = _shipping_charge(total_weight)
     total = round(subtotal + shipping, 2)
-    return round(subtotal, 2), shipping, round(total_weight, 1), total, snapshot
+    return round(subtotal, 2), shipping, round(total_weight, 1), round(total_bv, 1), total, snapshot
 
 
 @api_router.post("/checkout/create-order")
 async def create_order(payload: CreateOrderRequest):
-    subtotal, shipping, total_weight, total, snapshot = await _price_cart(
+    subtotal, shipping, total_weight, total_bv, total, snapshot = await _price_cart(
         payload.items, payload.altos_verified
     )
     amount_paise = int(round(total * 100))
@@ -257,6 +262,7 @@ async def create_order(payload: CreateOrderRequest):
         "subtotal": subtotal,
         "shipping_charge": shipping,
         "total_weight_grams": total_weight,
+        "total_bv": total_bv if payload.altos_verified else 0,
         "currency": "INR",
         "items": snapshot,
         "customer": payload.customer.dict(),
@@ -275,6 +281,7 @@ async def create_order(payload: CreateOrderRequest):
         "subtotal": subtotal,
         "shipping_charge": shipping,
         "total_weight_grams": total_weight,
+        "total_bv": total_bv if payload.altos_verified else 0,
         "currency": "INR",
         "key_id": RAZORPAY_KEY_ID if not DEMO_MODE else None,
         "demo": DEMO_MODE,
@@ -564,6 +571,7 @@ SEED_PRODUCTS = [
         "mrp": 699.0,
         "weight": "60 capsules",
         "weight_grams": 120,
+        "bv": 30,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1675016276166-816be56a8c11?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 120,
@@ -576,6 +584,7 @@ SEED_PRODUCTS = [
         "mrp": 999.0,
         "weight": "30 ml",
         "weight_grams": 100,
+        "bv": 45,
         "category": "Skincare",
         "image": "https://images.pexels.com/photos/20171275/pexels-photo-20171275.jpeg?auto=compress&cs=tinysrgb&w=1000",
         "stock": 80,
@@ -588,6 +597,7 @@ SEED_PRODUCTS = [
         "mrp": 749.0,
         "weight": "90 capsules",
         "weight_grams": 180,
+        "bv": 40,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 100,
@@ -600,6 +610,7 @@ SEED_PRODUCTS = [
         "mrp": 1099.0,
         "weight": "30 ml",
         "weight_grams": 100,
+        "bv": 50,
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 60,
@@ -612,6 +623,7 @@ SEED_PRODUCTS = [
         "mrp": 899.0,
         "weight": "120 tablets",
         "weight_grams": 220,
+        "bv": 35,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 90,
@@ -624,6 +636,7 @@ SEED_PRODUCTS = [
         "mrp": 549.0,
         "weight": "100 ml",
         "weight_grams": 180,
+        "bv": 25,
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1556228578-8c89e6adf883?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 110,
@@ -651,6 +664,10 @@ async def seed_data():
         await db.products.update_one(
             {"name": p["name"], "weight_grams": {"$in": [0, None]}},
             {"$set": {"weight_grams": p["weight_grams"]}},
+        )
+        await db.products.update_one(
+            {"name": p["name"], "bv": {"$in": [0, None]}},
+            {"$set": {"bv": p["bv"]}},
         )
 
     logger.info("Altos World Store API started. DEMO_MODE=%s", DEMO_MODE)

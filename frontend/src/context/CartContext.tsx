@@ -14,6 +14,10 @@ type CartContextValue = {
   lines: CartLine[];
   count: number;
   subtotal: number;
+  shipping: number;
+  total: number;
+  totalWeightGrams: number;
+  totalBV: number;
   ready: boolean;
   addItem: (product: Product, qty?: number) => void;
   setQuantity: (id: string, qty: number) => void;
@@ -80,6 +84,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => lines.reduce((s, l) => s + (Number(l.product.weight_grams) || 0) * l.quantity, 0),
     [lines],
   );
+  const totalBV = useMemo(
+    () => lines.reduce((s, l) => s + (Number(l.product.bv) || 0) * l.quantity, 0),
+    [lines],
+  );
   const shipping = shippingCharge(totalWeightGrams);
   const total = subtotal + shipping;
 
@@ -90,6 +98,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     shipping,
     total,
     totalWeightGrams,
+    totalBV,
     ready,
     addItem,
     setQuantity,

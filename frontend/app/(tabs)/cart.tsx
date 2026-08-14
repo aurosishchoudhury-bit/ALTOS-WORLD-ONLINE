@@ -16,7 +16,7 @@ import { colors, spacing, formatINR } from "@/src/theme/theme";
 export default function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { lines, subtotal, shipping, total, totalWeightGrams, setQuantity, removeItem, count } =
+  const { lines, subtotal, shipping, total, totalWeightGrams, totalBV, setQuantity, removeItem, count } =
     useCart();
   const { verified } = useAltosAuth();
 
@@ -117,6 +117,16 @@ export default function CartScreen() {
             </AppText>
           )}
         </View>
+        {verified && totalBV > 0 && (
+          <View style={styles.summaryRow}>
+            <AppText variant="body" color={colors.onSurfaceSecondary}>
+              Total BV
+            </AppText>
+            <AppText variant="semibold" color={colors.brand} testID="cart-total-bv">
+              {totalBV} BV
+            </AppText>
+          </View>
+        )}
         <View style={[styles.summaryRow, styles.totalRow]}>
           <AppText variant="displaySemiBold" style={styles.totalLabel}>
             Total

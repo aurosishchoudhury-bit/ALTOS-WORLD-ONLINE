@@ -129,6 +129,7 @@ export default function ProductDetail() {
           {verified && (
             <AppText variant="body" color={colors.success} style={styles.dpNote}>
               Altos ID holder DP price applied
+              {Number(product.bv) > 0 ? ` · BV ${Number(product.bv)} per unit` : ""}
             </AppText>
           )}
 

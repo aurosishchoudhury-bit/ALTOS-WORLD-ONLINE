@@ -23,7 +23,7 @@ export default function OrderSuccess() {
   const [order, setOrder] = useState<any>(null);
 
   const bvMessage = order
-    ? `Hi Altos World! Payment is done for my order ${orderCode(order.id)} (${formatINR(order.amount)}). Kindly generate BV ASAP. Altos ID: ${order.customer?.altos_id || "-"}, Name: ${order.customer?.name || ""}, Phone: ${order.customer?.phone || ""}.`
+    ? `Hi Altos World! Payment is done for my order ${orderCode(order.id)} (${formatINR(order.amount)}). Kindly generate BV ASAP. Total BV: ${order.total_bv || 0}. Altos ID: ${order.customer?.altos_id || "-"}, Name: ${order.customer?.name || ""}, Phone: ${order.customer?.phone || ""}.`
     : "";
 
   useEffect(() => {

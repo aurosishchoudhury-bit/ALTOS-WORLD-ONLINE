@@ -71,6 +71,11 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
           </>
         )}
       </View>
+      {verified && Number(product.bv) > 0 && (
+        <AppText variant="semibold" color={colors.brand} style={styles.bvText}>
+          BV {Number(product.bv)}
+        </AppText>
+      )}
     </Pressable>
   );
 }
@@ -126,5 +131,14 @@ const styles = StyleSheet.create({
   mrp: {
     fontSize: 12,
     textDecorationLine: "line-through",
+  },
+  discount: {
+    fontSize: 11,
+    letterSpacing: 0.2,
+  },
+  bvText: {
+    fontSize: 11,
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
 });
