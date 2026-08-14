@@ -71,6 +71,11 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
           </>
         )}
       </View>
+      {product.mrp > 0 && (
+        <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.packingLine}>
+          {product.weight ? `${product.weight} · ` : ""}MRP {formatINR(product.mrp)}
+        </AppText>
+      )}
       {verified && Number(product.bv) > 0 && (
         <AppText variant="semibold" color={colors.brand} style={styles.bvText}>
           BV {Number(product.bv)}
@@ -140,5 +145,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     letterSpacing: 0.3,
+  },
+  packingLine: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

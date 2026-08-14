@@ -67,6 +67,11 @@ export default function CartScreen() {
                 <AppText variant="displayMedium" style={styles.itemName} numberOfLines={2}>
                   {line.product.name}
                 </AppText>
+                {!!line.product.weight && (
+                  <AppText variant="body" color={colors.muted} style={styles.itemPacking}>
+                    {line.product.weight}
+                  </AppText>
+                )}
                 <AppText variant="medium" style={styles.itemPrice}>
                   {formatINR(getPriceInfo(line.product, verified).unit)}
                 </AppText>
@@ -181,6 +186,7 @@ const styles = StyleSheet.create({
   },
   itemBody: { flex: 1 },
   itemName: { fontSize: 20, lineHeight: 24 },
+  itemPacking: { fontSize: 12, marginTop: 2 },
   itemPrice: { fontSize: 14, marginTop: spacing.xs },
   itemControls: {
     flexDirection: "row",

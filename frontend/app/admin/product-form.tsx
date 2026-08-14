@@ -300,10 +300,10 @@ export default function ProductForm() {
           <View style={{ flex: 1 }}>
             <FormField
               testID="form-weight"
-              label="Weight / Size"
+              label="Packing (weight / size)"
               value={weight}
               onChangeText={setWeight}
-              placeholder="60 capsules"
+              placeholder="100 ml / 60 capsules"
               autoCapitalize="none"
             />
           </View>

@@ -126,6 +126,11 @@ export default function ProductDetail() {
               </>
             )}
           </View>
+          {product.mrp > 0 && (
+            <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.packingLine}>
+              Packing: {product.weight || "-"} · MRP {formatINR(product.mrp)}
+            </AppText>
+          )}
           {verified && (
             <AppText variant="body" color={colors.success} style={styles.dpNote}>
               Altos ID holder DP price applied
@@ -241,6 +246,10 @@ const styles = StyleSheet.create({
   },
   dpNote: {
     fontSize: 12,
+    marginTop: spacing.sm,
+  },
+  packingLine: {
+    fontSize: 13,
     marginTop: spacing.sm,
   },
   divider: {
