@@ -6,8 +6,8 @@ import InfoPage from "@/src/components/InfoPage";
 import AppText from "@/src/components/AppText";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
-const PHONE = "+91 94380 00000";
-const EMAIL = "care@altosworld.in";
+const PHONE = "+91 77354 54828";
+const EMAIL = "altosworldonline@gmail.com";
 const WHATSAPP_TEXT = "Hi Altos World! I have a question about my order.";
 
 function Row({

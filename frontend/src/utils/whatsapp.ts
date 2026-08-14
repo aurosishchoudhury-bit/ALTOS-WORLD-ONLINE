@@ -1,5 +1,7 @@
 import { Linking } from "react-native";
 
+export const STORE_WHATSAPP = "917735454828"; // Altos World support number
+
 const waPhone = (phone?: string): string => {
   const digits = (phone || "").replace(/\D/g, "");
   if (!digits) return "";

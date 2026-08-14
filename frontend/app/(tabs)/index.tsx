@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
 import HomeMenu from "@/src/components/HomeMenu";
+import WhatsAppFab from "@/src/components/WhatsAppFab";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
@@ -354,6 +355,7 @@ export default function Storefront() {
         categories={categories}
         onSelectCategory={onSelectCategory}
       />
+      <WhatsAppFab />
     </View>
   );
 }
