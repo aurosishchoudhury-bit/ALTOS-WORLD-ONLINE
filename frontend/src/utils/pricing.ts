@@ -26,3 +26,22 @@ export function getPriceInfo(product: Product, altosVerified: boolean): PriceInf
 
 export const discountPercent = (info: PriceInfo): number =>
   info.compareAt ? Math.round(((info.compareAt - info.unit) / info.compareAt) * 100) : 0;
+
+// ---- Weight-based shipping & limits ----
+export const HEAVY_ITEM_THRESHOLD_G = 500; // items >= 500g are limited per order
+export const HEAVY_ITEM_MAX_QTY = 2;
+
+export const isHeavyItem = (p: Product): boolean =>
+  (Number(p.weight_grams) || 0) >= HEAVY_ITEM_THRESHOLD_G;
+
+export const maxQtyFor = (p: Product): number => (isHeavyItem(p) ? HEAVY_ITEM_MAX_QTY : 99);
+
+/** Free up to 3kg; Rs.50 above 3kg up to 5kg; Rs.100 above 5kg. */
+export function shippingCharge(totalGrams: number): number {
+  if (totalGrams > 5000) return 100;
+  if (totalGrams > 3000) return 50;
+  return 0;
+}
+
+export const formatWeight = (grams: number): string =>
+  grams >= 1000 ? `${(grams / 1000).toFixed(grams % 1000 === 0 ? 0 : 1)} kg` : `${Math.round(grams)} g`;

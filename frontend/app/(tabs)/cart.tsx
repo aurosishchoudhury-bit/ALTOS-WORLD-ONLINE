@@ -10,13 +10,14 @@ import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo } from "@/src/utils/pricing";
+import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { lines, subtotal, setQuantity, removeItem, count } = useCart();
+  const { lines, subtotal, shipping, total, totalWeightGrams, setQuantity, removeItem, count } =
+    useCart();
   const { verified } = useAltosAuth();
 
   if (lines.length === 0) {
@@ -72,6 +73,7 @@ export default function CartScreen() {
                   <QuantityStepper
                     value={line.quantity}
                     onChange={(v) => setQuantity(line.product.id, v)}
+                    max={maxQtyFor(line.product)}
                     testIDPrefix={`cart-qty-${line.product.id}`}
                   />
                   <Pressable
@@ -82,6 +84,11 @@ export default function CartScreen() {
                     <Feather name="trash-2" size={18} color={colors.muted} />
                   </Pressable>
                 </View>
+                {isHeavyItem(line.product) && (
+                  <AppText variant="body" color={colors.warning} style={styles.limitNote}>
+                    Max 2 pcs per order (500g+ item)
+                  </AppText>
+                )}
               </View>
             </View>
             {index < lines.length - 1 && <View style={styles.divider} />}
@@ -98,18 +105,24 @@ export default function CartScreen() {
         </View>
         <View style={styles.summaryRow}>
           <AppText variant="body" color={colors.onSurfaceSecondary}>
-            Shipping
+            Shipping{totalWeightGrams > 0 ? ` (${formatWeight(totalWeightGrams)})` : ""}
           </AppText>
-          <AppText variant="medium" color={colors.success}>
-            Free
-          </AppText>
+          {shipping > 0 ? (
+            <AppText variant="medium" testID="shipping-amount">
+              {formatINR(shipping)}
+            </AppText>
+          ) : (
+            <AppText variant="medium" color={colors.success} testID="shipping-amount">
+              Free
+            </AppText>
+          )}
         </View>
         <View style={[styles.summaryRow, styles.totalRow]}>
           <AppText variant="displaySemiBold" style={styles.totalLabel}>
             Total
           </AppText>
           <AppText variant="displaySemiBold" style={styles.totalLabel}>
-            {formatINR(subtotal)}
+            {formatINR(total)}
           </AppText>
         </View>
         <Button
@@ -163,6 +176,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: spacing.md,
+  },
+  limitNote: {
+    fontSize: 11,
+    marginTop: spacing.xs,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

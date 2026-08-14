@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { storage } from "@/src/utils/storage";
 import { Product } from "@/src/api/client";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo } from "@/src/utils/pricing";
+import { getPriceInfo, maxQtyFor, shippingCharge } from "@/src/utils/pricing";
 
 export type CartLine = {
   product: Product;
@@ -43,13 +43,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = (product: Product, qty = 1) => {
     setLines((prev) => {
+      const cap = maxQtyFor(product);
       const found = prev.find((l) => l.product.id === product.id);
       if (found) {
         return prev.map((l) =>
-          l.product.id === product.id ? { ...l, quantity: l.quantity + qty } : l,
+          l.product.id === product.id
+            ? { ...l, quantity: Math.min(cap, l.quantity + qty) }
+            : l,
         );
       }
-      return [...prev, { product, quantity: qty }];
+      return [...prev, { product, quantity: Math.min(cap, qty) }];
     });
   };
 
@@ -57,7 +60,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines((prev) =>
       qty <= 0
         ? prev.filter((l) => l.product.id !== id)
-        : prev.map((l) => (l.product.id === id ? { ...l, quantity: qty } : l)),
+        : prev.map((l) =>
+            l.product.id === id ? { ...l, quantity: Math.min(maxQtyFor(l.product), qty) } : l,
+          ),
     );
   };
 
@@ -71,11 +76,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => lines.reduce((s, l) => s + getPriceInfo(l.product, verified).unit * l.quantity, 0),
     [lines, verified],
   );
+  const totalWeightGrams = useMemo(
+    () => lines.reduce((s, l) => s + (Number(l.product.weight_grams) || 0) * l.quantity, 0),
+    [lines],
+  );
+  const shipping = shippingCharge(totalWeightGrams);
+  const total = subtotal + shipping;
 
   const value: CartContextValue = {
     lines,
     count,
     subtotal,
+    shipping,
+    total,
+    totalWeightGrams,
     ready,
     addItem,
     setQuantity,

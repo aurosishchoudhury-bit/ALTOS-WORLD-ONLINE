@@ -10,13 +10,20 @@ type Props = {
   value: number;
   onChange: (v: number) => void;
   min?: number;
+  max?: number;
   testIDPrefix?: string;
 };
 
-export default function QuantityStepper({ value, onChange, min = 0, testIDPrefix = "qty" }: Props) {
+export default function QuantityStepper({
+  value,
+  onChange,
+  min = 0,
+  max = 99,
+  testIDPrefix = "qty",
+}: Props) {
   const step = (delta: number) => {
     Haptics.selectionAsync().catch(() => {});
-    onChange(Math.max(min, value + delta));
+    onChange(Math.min(max, Math.max(min, value + delta)));
   };
 
   return (

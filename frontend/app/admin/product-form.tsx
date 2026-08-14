@@ -30,6 +30,7 @@ export default function ProductForm() {
   const [mrp, setMrp] = useState("");
   const [offerPrice, setOfferPrice] = useState("");
   const [weight, setWeight] = useState("");
+  const [weightGrams, setWeightGrams] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
   const [stock, setStock] = useState("100");
@@ -46,6 +47,7 @@ export default function ProductForm() {
           setMrp(p.mrp ? String(p.mrp) : "");
           setOfferPrice(p.offer_price ? String(p.offer_price) : "");
           setWeight(p.weight || "");
+          setWeightGrams(p.weight_grams ? String(p.weight_grams) : "");
           setCategory(p.category);
           setImage(p.image);
           setStock(String(p.stock));
@@ -72,6 +74,10 @@ export default function ProductForm() {
       }
     }
     const stockNum = parseInt(stock, 10);
+    const gramsNum = parseFloat(weightGrams);
+    if (weightGrams.trim() && (isNaN(gramsNum) || gramsNum < 0)) {
+      return toast.show("Enter a valid weight in grams");
+    }
 
     const payload = {
       name: name.trim(),
@@ -80,6 +86,7 @@ export default function ProductForm() {
       mrp: isNaN(mrpNum) ? 0 : mrpNum,
       offer_price: offerPrice.trim() && !isNaN(offerNum) ? offerNum : 0,
       weight: weight.trim(),
+      weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
       category: category.trim() || "Supplements",
       image: image.trim(),
       stock: isNaN(stockNum) ? 0 : stockNum,
@@ -238,6 +245,19 @@ export default function ProductForm() {
             />
           </View>
         </View>
+
+        <FormField
+          testID="form-weight-grams"
+          label="Weight in grams (for shipping)"
+          value={weightGrams}
+          onChangeText={setWeightGrams}
+          placeholder="e.g. 250"
+          keyboardType="decimal-pad"
+        />
+        <AppText variant="body" color={colors.muted} style={styles.hint}>
+          Used to calculate shipping: free up to 3 kg, ₹50 above 3 kg, ₹100 above 5 kg. Items of
+          500 g or more are limited to 2 pcs per order.
+        </AppText>
 
         <FormField
           testID="form-description"

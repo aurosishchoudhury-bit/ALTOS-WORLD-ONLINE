@@ -20,7 +20,7 @@ import { useToast } from "@/src/components/Toast";
 import { api, Product } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo, discountPercent } from "@/src/utils/pricing";
+import { getPriceInfo, discountPercent, maxQtyFor, isHeavyItem } from "@/src/utils/pricing";
 
 const { width } = Dimensions.get("window");
 
@@ -142,8 +142,18 @@ export default function ProductDetail() {
             <AppText variant="semibold" style={styles.qtyLabel}>
               Quantity
             </AppText>
-            <QuantityStepper value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
+            <QuantityStepper
+              value={qty}
+              onChange={(v) => setQty(Math.max(1, v))}
+              min={1}
+              max={maxQtyFor(product)}
+            />
           </View>
+          {isHeavyItem(product) && (
+            <AppText variant="body" color={colors.warning} style={styles.limitNote}>
+              Max 2 pcs per order (item weighs 500g or more)
+            </AppText>
+          )}
 
           <AppText
             variant="body"
@@ -248,6 +258,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   qtyLabel: { fontSize: 15 },
+  limitNote: { fontSize: 12, marginTop: spacing.sm },
   stock: {
     marginTop: spacing.lg,
     fontSize: 13,

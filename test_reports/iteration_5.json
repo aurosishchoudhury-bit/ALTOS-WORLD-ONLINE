@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend regression + NEW weight-based shipping/qty-cap features. All 7 requested flows PASS on the mobile web preview (viewport 390x844). (1) 20 x Aloe & Cucumber Gel (180g each) in cart: Subtotal Rs.9,580, Shipping label 'Rs.50 (3.6 kg)', Total Rs.9,630 -- shipping stepper cap allowed adding 20 (item <500g so cap is 99). (2) Small cart (qty 1) shows Shipping 'Free' and Total = Subtotal. (3) Full demo checkout with the heavy 20-piece cart: Checkout summary shows Shipping Rs.50 (3.6 kg), Pay button label reads 'Pay with Razorpay . Rs.9,630', reached /order-success?order_id=af219bbc-... and backend GET /api/orders/{id} returns amount:9630.0, subtotal:9580.0, shipping_charge:50.0, total_weight_grams:3600.0, status:paid -- backend total EXACTLY matches frontend Total. (4) Admin edit product form renders 'Weight in grams (for shipping)' with testID form-weight-grams; loads existing value on edit (verified value=500 after PUT) and hint text explains free/50/100 tiers + 500g rule. (5) Quantity cap: after PUT-setting Ashwagandha Root Extract weight_grams=500, product detail shows 'Max 2 pcs per order (item weighs 500g or more)' and stepper caps at 2 despite 6 + clicks; cart shows 'Max 2 pcs per order (500g+ item)' and cart stepper also caps at 2. Reverted weight_grams to 120 after test. (6) Regression: home renders logo, hero, 'Altos ID Holder? Log in' box, Bestsellers row, category chips (All/Skincare/Supplements), and product grid. Admin > Orders tab renders 29 orders, Shiprocket 'Link' card, 27 whatsapp-{id} buttons, 8 mark-shipped-{id} buttons; iteration-4's statusMeta bug is FIXED -- shipped/delivered badges now render correctly (verified 'Paid' and 'Delivered' badges in screenshot). No red-screen errors, navigation works between Shop/Cart/Admin tabs and Expo Router /product/{id}, /cart, /checkout, /order-success, /admin/product-form.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/products/{id}", "issue": "ProductCreate model does not accept the 'featured' field, so any admin/API update silently resets stored featured=true back to false. Aloe & Cucumber Gel still has featured=true because we did not PUT it, but Ashwagandha now has featured=false after this test PUT (bestseller correctly stayed true). Low priority -- 'featured' is not surfaced anywhere in the reviewed UI paths; but if admin ever wants to control it, it needs to be added to ProductCreate or preserved on update."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (all screens)", "issues": ["CormorantGaramond .ttf files fail to decode on web preview: 'OTS parsing error: invalid sfntVersion: 168430090'. Falls back to system serif; purely cosmetic on web. Also flagged in iterations 3 and 4 -- unchanged."]}
+    ],
+    "react_native_issues": [
+      {"component": "Some component still using pointerEvents prop", "issue": "Console warning 'props.pointerEvents is deprecated. Use style.pointerEvents' still appears on nearly every page load. RN 0.79+ requires migrating to style.pointerEvents. Same warning was flagged in iteration_4."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_botanica_api.py",
+    "/app/backend/tests/test_shiprocket_and_status.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(LOW) server.py ProductCreate: consider including 'featured: bool = False' or preserve existing value on update so PUT does not silently reset it to false.",
+    "(LOW / carry-over) Migrate any remaining pointerEvents='...' props to style={{pointerEvents:'...'}} for RN 0.79+ compatibility.",
+    "(COSMETIC / carry-over) CormorantGaramond .ttf files fail OTS parsing on web preview -- non-blocking, system serif fallback used."
+  ],
+  "critical_code_review_comments": [
+    "src/utils/pricing.ts shippingCharge() tiers (>5000 -> 100, >3000 -> 50, else 0) match user rules exactly. isHeavyItem uses >=500g threshold and maxQtyFor returns 2 for heavy / 99 otherwise -- correct.",
+    "CartContext.addItem and setQuantity both clamp with maxQtyFor -- verified in UI that 6 clicks of + on a 500g item ends at 2 in both product-detail and cart steppers.",
+    "cart.tsx and checkout.tsx compute shipping/total from CartContext (single source of truth) so numbers cannot drift between screens; verified frontend Total = backend order amount = 9630 for the 20 x Aloe scenario.",
+    "product-form.tsx correctly reads/writes weight_grams and shows a hint documenting tiers + 500g cap. Field testID matches request (form-weight-grams).",
+    "checkout.tsx pay-button label is derived from cart total including shipping -- verified label 'Pay with Razorpay . Rs.9,630'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (all 7 requested checks; backend order total matches frontend total; PUT product weight_grams round-trips)", "frontend": "100% (7/7 requested flows: 20-piece heavy cart, small-cart free shipping, full demo checkout, admin form field, product-page qty cap, cart qty cap, home + admin-orders regression)"},
+  "seed_data_creation": "One additional demo-paid order was created during testing: order_id af219bbc-5c89-48b4-97b2-909766f830f3 (TEST Buyer, 9998887777, Rs.9,630, 20 x Aloe & Cucumber Gel). Ashwagandha Root Extract was temporarily PUT to weight_grams=500 for the qty-cap test and reverted to 120 afterwards. Side effect: Ashwagandha.featured flipped from true -> false because ProductCreate omits the field (see backend_issues.minor); bestseller correctly stayed true. No other product mutated.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Weight-based shipping (0/50/100) and 500g -> max 2pcs cap are wired end-to-end and passing on web. The only outstanding low-priority items are pre-existing: (a) ProductCreate silently drops 'featured' on update; (b) CormorantGaramond .ttf fails on web preview; (c) deprecated pointerEvents prop console warning. iteration_4's statusMeta shipped/delivered badge bug is FIXED. All testIDs referenced in the request are present: form-weight-grams, cart-qty-{id}-increase/-decrease/-value, shipping-amount, checkout-shipping, pay-button, checkout-button, add-to-cart-button. Backend order af219bbc-5c89-48b4-97b2-909766f830f3 can be reused as a heavy-shipping regression fixture."
+}

@@ -58,7 +58,8 @@ class ProductBase(BaseModel):
     mrp: float = 0  # Maximum Retail Price; what regular (non-verified) customers pay
     offer_price: float = 0  # Optional offer for regular customers (admin-set); 0 = no offer
     bestseller: bool = False  # Featured in the Bestsellers row on home
-    weight: str = ""  # e.g. "60 capsules", "30ml", "250g"
+    weight: str = ""  # display text, e.g. "60 capsules", "30ml", "250g"
+    weight_grams: float = 0  # numeric weight used for shipping calculation
     category: str = "Supplements"
     image: str = ""
     stock: int = 100
@@ -181,16 +182,37 @@ def _unit_price(product: dict, altos_verified: bool) -> float:
     return mrp if mrp > 0 else float(product["price"])
 
 
+# Shipping: free up to 3kg, Rs.50 above 3kg up to 5kg, Rs.100 above 5kg.
+HEAVY_ITEM_THRESHOLD_G = 500  # items weighing >= 500g are limited per order
+HEAVY_ITEM_MAX_QTY = 2
+
+
+def _shipping_charge(total_weight_g: float) -> float:
+    if total_weight_g > 5000:
+        return 100.0
+    if total_weight_g > 3000:
+        return 50.0
+    return 0.0
+
+
 async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
-    total = 0.0
+    subtotal = 0.0
+    total_weight = 0.0
     snapshot = []
     for item in items:
         product = await db.products.find_one({"id": item.id}, {"_id": 0})
         if not product:
             raise HTTPException(400, f"Unknown product: {item.id}")
+        grams = float(product.get("weight_grams") or 0)
+        if grams >= HEAVY_ITEM_THRESHOLD_G and item.quantity > HEAVY_ITEM_MAX_QTY:
+            raise HTTPException(
+                400,
+                f"Only {HEAVY_ITEM_MAX_QTY} pcs of {product['name']} allowed per order (500g+ item)",
+            )
         unit = _unit_price(product, altos_verified)
         line = unit * item.quantity
-        total += line
+        subtotal += line
+        total_weight += grams * item.quantity
         snapshot.append({
             "id": item.id,
             "name": product["name"],
@@ -198,13 +220,18 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
             "unit_price": unit,
             "quantity": item.quantity,
             "line_total": line,
+            "weight_grams": grams,
         })
-    return round(total, 2), snapshot
+    shipping = _shipping_charge(total_weight)
+    total = round(subtotal + shipping, 2)
+    return round(subtotal, 2), shipping, round(total_weight, 1), total, snapshot
 
 
 @api_router.post("/checkout/create-order")
 async def create_order(payload: CreateOrderRequest):
-    total, snapshot = await _price_cart(payload.items, payload.altos_verified)
+    subtotal, shipping, total_weight, total, snapshot = await _price_cart(
+        payload.items, payload.altos_verified
+    )
     amount_paise = int(round(total * 100))
     order_id = str(uuid.uuid4())
     receipt = "rcpt_" + order_id[:30]
@@ -226,6 +253,9 @@ async def create_order(payload: CreateOrderRequest):
         "razorpay_order_id": razorpay_order_id,
         "amount": total,
         "amount_paise": amount_paise,
+        "subtotal": subtotal,
+        "shipping_charge": shipping,
+        "total_weight_grams": total_weight,
         "currency": "INR",
         "items": snapshot,
         "customer": payload.customer.dict(),
@@ -241,6 +271,9 @@ async def create_order(payload: CreateOrderRequest):
         "razorpay_order_id": razorpay_order_id,
         "amount": total,
         "amount_paise": amount_paise,
+        "subtotal": subtotal,
+        "shipping_charge": shipping,
+        "total_weight_grams": total_weight,
         "currency": "INR",
         "key_id": RAZORPAY_KEY_ID if not DEMO_MODE else None,
         "demo": DEMO_MODE,
@@ -529,6 +562,7 @@ SEED_PRODUCTS = [
         "price": 499.0,
         "mrp": 699.0,
         "weight": "60 capsules",
+        "weight_grams": 120,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1675016276166-816be56a8c11?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 120,
@@ -540,6 +574,7 @@ SEED_PRODUCTS = [
         "price": 699.0,
         "mrp": 999.0,
         "weight": "30 ml",
+        "weight_grams": 100,
         "category": "Skincare",
         "image": "https://images.pexels.com/photos/20171275/pexels-photo-20171275.jpeg?auto=compress&cs=tinysrgb&w=1000",
         "stock": 80,
@@ -551,6 +586,7 @@ SEED_PRODUCTS = [
         "price": 549.0,
         "mrp": 749.0,
         "weight": "90 capsules",
+        "weight_grams": 180,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 100,
@@ -562,6 +598,7 @@ SEED_PRODUCTS = [
         "price": 799.0,
         "mrp": 1099.0,
         "weight": "30 ml",
+        "weight_grams": 100,
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 60,
@@ -573,6 +610,7 @@ SEED_PRODUCTS = [
         "price": 649.0,
         "mrp": 899.0,
         "weight": "120 tablets",
+        "weight_grams": 220,
         "category": "Supplements",
         "image": "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 90,
@@ -584,6 +622,7 @@ SEED_PRODUCTS = [
         "price": 399.0,
         "mrp": 549.0,
         "weight": "100 ml",
+        "weight_grams": 180,
         "category": "Skincare",
         "image": "https://images.unsplash.com/photo-1556228578-8c89e6adf883?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000",
         "stock": 110,
@@ -607,6 +646,10 @@ async def seed_data():
         await db.products.update_one(
             {"name": p["name"], "$or": [{"mrp": {"$in": [0, None]}}, {"weight": {"$in": ["", None]}}]},
             {"$set": {"mrp": p["mrp"], "weight": p["weight"]}},
+        )
+        await db.products.update_one(
+            {"name": p["name"], "weight_grams": {"$in": [0, None]}},
+            {"$set": {"weight_grams": p["weight_grams"]}},
         )
 
     logger.info("Altos World Store API started. DEMO_MODE=%s", DEMO_MODE)

@@ -12,7 +12,7 @@ import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo } from "@/src/utils/pricing";
+import { getPriceInfo, formatWeight } from "@/src/utils/pricing";
 import { api } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
@@ -22,7 +22,7 @@ export default function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, shipping, total, totalWeightGrams, clear } = useCart();
   const { verified } = useAltosAuth();
 
   const [name, setName] = useState("");
@@ -179,11 +179,31 @@ export default function Checkout() {
           </View>
         ))}
         <View style={[styles.summaryRow, { marginTop: spacing.md }]}>
+          <AppText variant="body" color={colors.onSurfaceSecondary}>
+            Subtotal
+          </AppText>
+          <AppText variant="medium">{formatINR(subtotal)}</AppText>
+        </View>
+        <View style={styles.summaryRow}>
+          <AppText variant="body" color={colors.onSurfaceSecondary}>
+            Shipping{totalWeightGrams > 0 ? ` (${formatWeight(totalWeightGrams)})` : ""}
+          </AppText>
+          {shipping > 0 ? (
+            <AppText variant="medium" testID="checkout-shipping">
+              {formatINR(shipping)}
+            </AppText>
+          ) : (
+            <AppText variant="medium" color={colors.success} testID="checkout-shipping">
+              Free
+            </AppText>
+          )}
+        </View>
+        <View style={[styles.summaryRow, { marginTop: spacing.sm }]}>
           <AppText variant="displaySemiBold" style={styles.totalText}>
             Total
           </AppText>
           <AppText variant="displaySemiBold" style={styles.totalText}>
-            {formatINR(subtotal)}
+            {formatINR(total)}
           </AppText>
         </View>
       </KeyboardAwareScrollView>
@@ -192,7 +212,7 @@ export default function Checkout() {
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <Button
             testID="pay-button"
-            label={`Pay with Razorpay · ${formatINR(subtotal)}`}
+            label={`Pay with Razorpay · ${formatINR(total)}`}
             onPress={onPay}
             loading={submitting}
             disabled={lines.length === 0}

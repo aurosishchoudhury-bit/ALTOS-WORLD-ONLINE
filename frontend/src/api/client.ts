@@ -10,6 +10,7 @@ export type Product = {
   offer_price: number;
   bestseller?: boolean;
   weight: string;
+  weight_grams?: number;
   category: string;
   image: string;
   stock: number;

@@ -168,3 +168,33 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test new Shiprocket + WhatsApp feature. Shiprocket external API has NO credentials — test connect failure path, 409 on sync when unlinked, and PATCH status transitions. WhatsApp buttons open wa.me URLs (new tab on web) — verify URL/text, don't actually send."
+
+backend:
+  - task: "Weight-based shipping (free<=3kg, Rs50 3-5kg, Rs100 >5kg) + 500g item 2-pc limit"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added weight_grams to products (seeded+backfilled). _price_cart computes subtotal/shipping/total_weight/total; rejects qty>2 for items >=500g. Order doc stores subtotal, shipping_charge, total_weight_grams. Curl-verified all tiers + limit."
+
+frontend:
+  - task: "Shipping in cart/checkout billing + qty caps for heavy items + admin weight-grams field"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/context/CartContext.tsx, cart.tsx, checkout.tsx, product/[id].tsx, admin/product-form.tsx, src/utils/pricing.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "CartContext exposes shipping/total/totalWeightGrams and clamps qty (max 2 for >=500g items). Cart & checkout show Subtotal/Shipping(weight)/Total rows; Pay button uses total. QuantityStepper got max prop. Product page shows 'Max 2 pcs' note for heavy items. Admin form has 'Weight in grams' field."
+
+agent_communication:
+  - agent: "main"
+    message: "Test frontend shipping flow: current products weigh 100-220g so shipping is Free for small carts; to trigger Rs50 tier add ~20 pcs of one product (e.g. Aloe 180g x20=3.6kg). Verify totals match backend order amount, and full demo checkout still works end-to-end."
