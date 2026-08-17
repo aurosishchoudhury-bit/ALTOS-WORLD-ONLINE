@@ -277,6 +277,17 @@ export default function Admin() {
           ListHeaderComponent={
             <>
               <Pressable
+                testID="manage-banners"
+                onPress={() => router.push("/admin/banners")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="image" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  Home Banners — upload & manage (max 4)
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+              <Pressable
                 testID="manage-diseases"
                 onPress={() => router.push("/admin/diseases")}
                 style={styles.manageDiseases}

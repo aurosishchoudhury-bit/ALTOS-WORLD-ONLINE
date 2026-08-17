@@ -21,6 +21,7 @@ import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
 import HomeMenu from "@/src/components/HomeMenu";
 import WhatsAppFab from "@/src/components/WhatsAppFab";
+import BannerCarousel from "@/src/components/BannerCarousel";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
@@ -47,6 +48,11 @@ export default function Storefront() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [banners, setBanners] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.listBanners().then(setBanners).catch(() => {});
+  }, []);
 
   const load = useCallback(async (category: string) => {
     try {
@@ -128,6 +134,8 @@ export default function Storefront() {
           </AppText>
         </View>
       </View>
+
+      <BannerCarousel banners={banners} />
 
       <View style={styles.loginWrap}>
         {verified ? (

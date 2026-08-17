@@ -122,6 +122,21 @@ export const api = {
   async getReviews(productId: string): Promise<{ reviews: any[]; rating_avg: number; rating_count: number }> {
     return handle(await fetch(`${API}/products/${productId}/reviews`));
   },
+  async listBanners(): Promise<any[]> {
+    return handle(await fetch(`${API}/banners`));
+  },
+  async addBanner(image: string) {
+    return handle(
+      await fetch(`${API}/banners`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+      }),
+    );
+  },
+  async deleteBanner(id: string) {
+    return handle(await fetch(`${API}/banners/${id}`, { method: "DELETE" }));
+  },
   async listDiseases(): Promise<any[]> {
     return handle(await fetch(`${API}/diseases`));
   },

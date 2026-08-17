@@ -154,6 +154,15 @@ class Disease(DiseaseIn):
     created_at: str = Field(default_factory=now_iso)
 
 
+class BannerIn(BaseModel):
+    image: str = Field(min_length=1, max_length=1000)
+
+
+class Banner(BannerIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
 class CartItemIn(BaseModel):
     id: str
     quantity: int = Field(gt=0, le=50)
@@ -260,6 +269,33 @@ async def add_review(product_id: str, payload: ReviewIn):
     review = Review(product_id=product_id, **payload.dict())
     await db.reviews.insert_one(review.dict())
     return review.dict()
+
+
+# ---------------- Home banners ----------------
+MAX_BANNERS = 4
+
+
+@api_router.get("/banners")
+async def list_banners():
+    return await db.banners.find({}, {"_id": 0}).sort("created_at", 1).to_list(MAX_BANNERS)
+
+
+@api_router.post("/banners")
+async def add_banner(payload: BannerIn):
+    count = await db.banners.count_documents({})
+    if count >= MAX_BANNERS:
+        raise HTTPException(400, f"Maximum {MAX_BANNERS} banners allowed — delete one first")
+    banner = Banner(**payload.dict())
+    await db.banners.insert_one(banner.dict())
+    return banner.dict()
+
+
+@api_router.delete("/banners/{banner_id}")
+async def delete_banner(banner_id: str):
+    res = await db.banners.delete_one({"id": banner_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Banner not found")
+    return {"deleted": True}
 
 
 # ---------------- Diseases (shop by health concern) ----------------
