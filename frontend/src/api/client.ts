@@ -18,6 +18,7 @@ export type Product = {
   weight_grams?: number;
   category: string;
   image: string;
+  images?: string[];
   stock: number;
   featured: boolean;
   rating_avg?: number;

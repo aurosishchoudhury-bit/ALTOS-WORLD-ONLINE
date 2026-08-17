@@ -5,7 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -24,8 +24,6 @@ import { colors, spacing, formatINR } from "@/src/theme/theme";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { getPriceInfo, discountPercent, maxQtyFor, isHeavyItem } from "@/src/utils/pricing";
 
-const { width } = Dimensions.get("window");
-
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -38,6 +36,8 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [qty, setQty] = useState(1);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const { width: winWidth } = useWindowDimensions();
 
   const [reviews, setReviews] = useState<any[]>([]);
   const [ratingAvg, setRatingAvg] = useState(0);
@@ -135,8 +135,50 @@ export default function ProductDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <View style={styles.imageWrap}>
-          <Image source={{ uri: resolveImageUri(product.image) }} style={styles.image} contentFit="cover" />
+        <View style={[styles.imageWrap, { width: winWidth, height: winWidth * 1.1 }]}>
+          {(() => {
+            const gallery =
+              product.images && product.images.length > 0 ? product.images : [product.image];
+            if (gallery.length === 1) {
+              return (
+                <Image
+                  source={{ uri: resolveImageUri(gallery[0]) }}
+                  style={styles.image}
+                  contentFit="cover"
+                />
+              );
+            }
+            return (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) =>
+                    setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / winWidth))
+                  }
+                  testID="product-gallery"
+                >
+                  {gallery.map((img, i) => (
+                    <Image
+                      key={img + i}
+                      source={{ uri: resolveImageUri(img) }}
+                      style={[styles.image, { width: winWidth }]}
+                      contentFit="cover"
+                    />
+                  ))}
+                </ScrollView>
+                <View style={styles.galleryDots}>
+                  {gallery.map((img, i) => (
+                    <View
+                      key={`d${i}`}
+                      style={[styles.galleryDot, i === galleryIndex && styles.galleryDotActive]}
+                    />
+                  ))}
+                </View>
+              </>
+            );
+          })()}
           <Pressable
             testID="back-button"
             onPress={() => router.back()}
@@ -318,11 +360,26 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   imageWrap: {
-    width: width,
-    height: width * 1.1,
     backgroundColor: colors.surfaceSecondary,
   },
   image: { width: "100%", height: "100%" },
+  galleryDots: {
+    position: "absolute",
+    bottom: 14,
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 5,
+  },
+  galleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.6)",
+  },
+  galleryDotActive: {
+    backgroundColor: "#FFFFFF",
+    width: 14,
+  },
   backBtn: {
     position: "absolute",
     left: spacing.lg,

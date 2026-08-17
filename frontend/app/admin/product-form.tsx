@@ -15,6 +15,7 @@ import { api, API, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Home Care", "Personal Care"];
+const MAX_IMAGES = 4;
 
 export default function ProductForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -27,8 +28,7 @@ export default function ProductForm() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const uploadPicked = async (asset: ImagePicker.ImagePickerAsset) => {
-    setUploading(true);
+  const uploadPicked = async (asset: ImagePicker.ImagePickerAsset): Promise<string | null> => {
     try {
       const name = asset.fileName || `photo_${Date.now()}.jpg`;
       const type = asset.mimeType || "image/jpeg";
@@ -45,22 +45,23 @@ export default function ProductForm() {
         throw new Error(err?.detail || "Upload failed");
       }
       const data = await res.json();
-      setImage(data.image_url);
-      toast.show("Image uploaded");
+      return data.image_url;
     } catch (e: any) {
       toast.show(e?.message || "Could not upload image");
-    } finally {
-      setUploading(false);
+      return null;
     }
   };
 
   const pickFromGallery = async () => {
+    if (images.length >= MAX_IMAGES) {
+      return toast.show(`Maximum ${MAX_IMAGES} images per product`);
+    }
     const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       if (perm.canAskAgain || perm.status === "undetermined") {
         const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!req.granted) {
-          toast.show("Gallery access is needed to pick a product photo");
+          toast.show("Gallery access is needed to pick product photos");
           return;
         }
       } else {
@@ -69,14 +70,25 @@ export default function ProductForm() {
         return;
       }
     }
+    const remaining = MAX_IMAGES - images.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.7,
-      allowsMultipleSelection: false,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
     });
-    if (!result.canceled && result.assets?.[0]) {
-      await uploadPicked(result.assets[0]);
+    if (result.canceled || !result.assets?.length) return;
+    setUploading(true);
+    const urls: string[] = [];
+    for (const asset of result.assets.slice(0, remaining)) {
+      const url = await uploadPicked(asset);
+      if (url) urls.push(url);
     }
+    if (urls.length) {
+      setImages((prev) => [...prev, ...urls].slice(0, MAX_IMAGES));
+      toast.show(`${urls.length} image(s) uploaded`);
+    }
+    setUploading(false);
   };
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -88,6 +100,7 @@ export default function ProductForm() {
   const [bv, setBv] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [stock, setStock] = useState("100");
   const [bestseller, setBestseller] = useState(false);
 
@@ -106,6 +119,7 @@ export default function ProductForm() {
           setBv(p.bv ? String(p.bv) : "");
           setCategory(p.category);
           setImage(p.image);
+          setImages(p.images?.length ? p.images : p.image ? [p.image] : []);
           setStock(String(p.stock));
           setBestseller(!!p.bestseller);
         })
@@ -145,7 +159,8 @@ export default function ProductForm() {
       weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
       bv: bv.trim() && !isNaN(parseFloat(bv)) ? parseFloat(bv) : 0,
       category: category.trim() || "Supplements",
-      image: image.trim(),
+      image: images[0] || image.trim(),
+      images: images.length ? images : image.trim() ? [image.trim()] : [],
       stock: isNaN(stockNum) ? 0 : stockNum,
       bestseller,
     };
@@ -192,7 +207,29 @@ export default function ProductForm() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {image ? (
+        {images.length > 0 ? (
+          <View style={styles.thumbRow}>
+            {images.map((img, i) => (
+              <View key={img + i} style={styles.thumbWrap}>
+                <Image source={{ uri: resolveImageUri(img) }} style={styles.thumb} contentFit="cover" />
+                <Pressable
+                  testID={`remove-image-${i}`}
+                  onPress={() => setImages((prev) => prev.filter((_, x) => x !== i))}
+                  style={styles.thumbRemove}
+                >
+                  <Feather name="x" size={12} color="#FFFFFF" />
+                </Pressable>
+                {i === 0 && (
+                  <View style={styles.mainTag}>
+                    <AppText variant="semibold" color={colors.onBrand} style={styles.mainTagText}>
+                      Main
+                    </AppText>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : image ? (
           <Image source={{ uri: resolveImageUri(image) }} style={styles.preview} contentFit="cover" />
         ) : (
           <View style={[styles.preview, styles.previewEmpty]}>
@@ -215,7 +252,7 @@ export default function ProductForm() {
             <Feather name="image" size={17} color={colors.brand} />
           )}
           <AppText variant="semibold" color={colors.brand} style={styles.galleryBtnText}>
-            {uploading ? "Uploading…" : "Add image from gallery"}
+            {uploading ? "Uploading…" : `Add images from gallery (${images.length}/${MAX_IMAGES})`}
           </AppText>
         </Pressable>
 
@@ -434,6 +471,43 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   galleryBtnText: { fontSize: 14 },
+  thumbRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  thumbWrap: {
+    width: 74,
+    height: 74,
+  },
+  thumb: {
+    width: 74,
+    height: 74,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  thumbRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(20,24,20,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mainTag: {
+    position: "absolute",
+    bottom: 4,
+    left: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+  },
+  mainTagText: { fontSize: 8, letterSpacing: 0.3 },
   label: {
     fontSize: 12,
     letterSpacing: 0.4,

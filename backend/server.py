@@ -115,6 +115,7 @@ class ProductBase(BaseModel):
     bv: float = 0  # Business Volume points (visible to Altos ID holders)
     weight: str = ""  # display text, e.g. "60 capsules", "30ml", "250g"
     weight_grams: float = 0  # numeric weight used for shipping calculation
+    images: List[str] = Field(default_factory=list, max_length=4)  # extra product photos
     category: str = "Supplements"
     image: str = ""
     stock: int = 100
