@@ -144,6 +144,16 @@ class Review(ReviewIn):
     created_at: str = Field(default_factory=now_iso)
 
 
+class DiseaseIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    product_ids: List[str] = Field(default_factory=list)
+
+
+class Disease(DiseaseIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
 class CartItemIn(BaseModel):
     id: str
     quantity: int = Field(gt=0, le=50)
@@ -250,6 +260,48 @@ async def add_review(product_id: str, payload: ReviewIn):
     review = Review(product_id=product_id, **payload.dict())
     await db.reviews.insert_one(review.dict())
     return review.dict()
+
+
+# ---------------- Diseases (shop by health concern) ----------------
+@api_router.get("/diseases")
+async def list_diseases():
+    docs = await db.diseases.find({}, {"_id": 0}).sort("name", 1).to_list(200)
+    return [{**d, "product_count": len(d.get("product_ids", []))} for d in docs]
+
+
+@api_router.post("/diseases")
+async def create_disease(payload: DiseaseIn):
+    disease = Disease(**payload.dict())
+    await db.diseases.insert_one(disease.dict())
+    return disease.dict()
+
+
+@api_router.put("/diseases/{disease_id}")
+async def update_disease(disease_id: str, payload: DiseaseIn):
+    res = await db.diseases.update_one({"id": disease_id}, {"$set": payload.dict()})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Disease not found")
+    doc = await db.diseases.find_one({"id": disease_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/diseases/{disease_id}")
+async def delete_disease(disease_id: str):
+    res = await db.diseases.delete_one({"id": disease_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Disease not found")
+    return {"deleted": True}
+
+
+@api_router.get("/diseases/{disease_id}/products", response_model=List[Product])
+async def disease_products(disease_id: str):
+    doc = await db.diseases.find_one({"id": disease_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Disease not found")
+    ids = doc.get("product_ids", [])
+    docs = await db.products.find({"id": {"$in": ids}}, {"_id": 0}).to_list(500)
+    ratings = await _rating_map([d["id"] for d in docs])
+    return [Product(**{**d, **ratings.get(d["id"], {})}) for d in docs]
 
 
 @api_router.post("/products", response_model=Product)

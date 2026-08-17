@@ -71,6 +71,12 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
             />
             <Item testID="menu-about" icon="info" label="About Us" onPress={() => go("/about")} />
             <Item
+              testID="menu-diseases"
+              icon="heart"
+              label="Shop by Disease"
+              onPress={() => go("/diseases")}
+            />
+            <Item
               testID="menu-categories"
               icon="grid"
               label="Categories"

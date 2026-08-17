@@ -34,6 +34,8 @@ function formatDate(iso?: string): string {
   }
 }
 
+const LOW_STOCK_THRESHOLD = 5;
+
 function statusMeta(status: string): { label: string; color: string } {
   switch (status) {
     case "paid":
@@ -272,6 +274,30 @@ export default function Admin() {
           contentContainerStyle={{ paddingBottom: 140, paddingTop: spacing.sm }}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
+          ListHeaderComponent={
+            <>
+              <Pressable
+                testID="manage-diseases"
+                onPress={() => router.push("/admin/diseases")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="heart" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  Shop by Disease — manage concerns & products
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+              {products.some((p) => p.stock <= LOW_STOCK_THRESHOLD) ? (
+                <View style={styles.lowStockBanner} testID="low-stock-banner">
+                  <Feather name="alert-triangle" size={16} color="#B45309" />
+                  <AppText variant="semibold" style={styles.lowStockBannerText}>
+                    {products.filter((p) => p.stock <= LOW_STOCK_THRESHOLD).length} product(s) low on
+                    stock (≤ {LOW_STOCK_THRESHOLD} left)
+                  </AppText>
+                </View>
+              ) : null}
+            </>
+          }
           ListEmptyComponent={
             <View style={styles.center}>
               <Feather name="package" size={28} color={colors.muted} />
@@ -291,6 +317,14 @@ export default function Admin() {
                   {item.category}
                   {item.weight ? ` · ${item.weight}` : ""} · Stock {item.stock}
                 </AppText>
+                {item.stock <= LOW_STOCK_THRESHOLD && (
+                  <View style={styles.lowStockPill} testID={`low-stock-${item.id}`}>
+                    <Feather name="alert-triangle" size={10} color="#B45309" />
+                    <AppText variant="semibold" style={styles.lowStockPillText}>
+                      {item.stock === 0 ? "Out of stock" : `Low stock: ${item.stock} left`}
+                    </AppText>
+                  </View>
+                )}
                 <View style={styles.adminPriceRow}>
                   <AppText variant="medium" style={styles.price}>
                     {formatINR(item.price)}
@@ -675,6 +709,44 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: spacing.md,
   },
+  lowStockBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "#F0C36D",
+    backgroundColor: "#FDF3E0",
+  },
+  lowStockBannerText: { fontSize: 12, color: "#B45309", flex: 1 },
+  lowStockPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "#FDF3E0",
+  },
+  lowStockPillText: { fontSize: 10, color: "#B45309", letterSpacing: 0.2 },
+  manageDiseases: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  manageDiseasesText: { fontSize: 12, flex: 1 },
   center: {
     paddingVertical: spacing["3xl"] * 2,
     alignItems: "center",

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, StyleSheet, Dimensions } from "react-native";
+import { View, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -10,9 +10,6 @@ import { Product, resolveImageUri } from "@/src/api/client";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { getPriceInfo, discountPercent } from "@/src/utils/pricing";
 
-const { width } = Dimensions.get("window");
-const CARD_W = (width - spacing.lg * 2 - spacing.lg) / 2;
-
 type Props = {
   product: Product;
   onPress: () => void;
@@ -20,6 +17,8 @@ type Props = {
 };
 
 export default function ProductCard({ product, onPress, onAdd }: Props) {
+  const { width } = useWindowDimensions();
+  const cardWidth = (width - spacing.lg * 2 - spacing.lg) / 2;
   const { verified } = useAltosAuth();
   const priceInfo = getPriceInfo(product, verified);
 
@@ -32,7 +31,7 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
     <Pressable
       testID={`product-card-${product.id}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.pressed]}
     >
       <View style={styles.imageWrap}>
         <Image
@@ -98,7 +97,6 @@ export default function ProductCard({ product, onPress, onAdd }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_W,
     marginBottom: spacing.xl,
   },
   pressed: { opacity: 0.85 },

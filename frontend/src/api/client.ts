@@ -122,6 +122,33 @@ export const api = {
   async getReviews(productId: string): Promise<{ reviews: any[]; rating_avg: number; rating_count: number }> {
     return handle(await fetch(`${API}/products/${productId}/reviews`));
   },
+  async listDiseases(): Promise<any[]> {
+    return handle(await fetch(`${API}/diseases`));
+  },
+  async createDisease(data: { name: string; product_ids: string[] }) {
+    return handle(
+      await fetch(`${API}/diseases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async updateDisease(id: string, data: { name: string; product_ids: string[] }) {
+    return handle(
+      await fetch(`${API}/diseases/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async deleteDisease(id: string) {
+    return handle(await fetch(`${API}/diseases/${id}`, { method: "DELETE" }));
+  },
+  async getDiseaseProducts(id: string): Promise<Product[]> {
+    return handle(await fetch(`${API}/diseases/${id}/products`));
+  },
   async addReview(productId: string, data: { name: string; rating: number; comment: string }) {
     return handle(
       await fetch(`${API}/products/${productId}/reviews`, {
