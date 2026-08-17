@@ -1,14 +1,22 @@
-import React from "react";
-import { View, Pressable, StyleSheet, Linking } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Pressable, StyleSheet, Linking, ScrollView } from "react-native";
+import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 
 import InfoPage from "@/src/components/InfoPage";
 import AppText from "@/src/components/AppText";
+import { api, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const ALTOS_ABOUT_URL = "https://www.altosindia.net/about";
 
 export default function AboutUs() {
+  const [certs, setCerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.listCertificates().then(setCerts).catch(() => {});
+  }, []);
+
   return (
     <InfoPage title="About Us">
       <AppText variant="displaySemiBold" style={styles.heading}>
@@ -61,6 +69,29 @@ export default function AboutUs() {
         and working together is success.&rdquo;
       </AppText>
 
+      {certs.length > 0 && (
+        <>
+          <AppText variant="semibold" style={styles.sub}>
+            Our Certificates
+          </AppText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.certRow}
+            testID="certificates-row"
+          >
+            {certs.map((c) => (
+              <Image
+                key={c.id}
+                source={{ uri: resolveImageUri(c.image) }}
+                style={styles.certImg}
+                contentFit="cover"
+              />
+            ))}
+          </ScrollView>
+        </>
+      )}
+
       <Pressable
         testID="altos-about-link"
         onPress={() => Linking.openURL(ALTOS_ABOUT_URL).catch(() => {})}
@@ -98,4 +129,14 @@ const styles = StyleSheet.create({
   },
   linkTitle: { fontSize: 14 },
   linkSub: { fontSize: 12, marginTop: 2 },
+  certRow: {
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  certImg: {
+    width: 220,
+    height: 160,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
 });

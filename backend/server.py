@@ -163,6 +163,15 @@ class Banner(BannerIn):
     created_at: str = Field(default_factory=now_iso)
 
 
+class CertificateIn(BaseModel):
+    image: str = Field(min_length=1, max_length=1000)
+
+
+class Certificate(CertificateIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
 class CartItemIn(BaseModel):
     id: str
     quantity: int = Field(gt=0, le=50)
@@ -295,6 +304,27 @@ async def delete_banner(banner_id: str):
     res = await db.banners.delete_one({"id": banner_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Banner not found")
+    return {"deleted": True}
+
+
+# ---------------- Certificates (About Us) ----------------
+@api_router.get("/certificates")
+async def list_certificates():
+    return await db.certificates.find({}, {"_id": 0}).sort("created_at", 1).to_list(50)
+
+
+@api_router.post("/certificates")
+async def add_certificate(payload: CertificateIn):
+    cert = Certificate(**payload.dict())
+    await db.certificates.insert_one(cert.dict())
+    return cert.dict()
+
+
+@api_router.delete("/certificates/{cert_id}")
+async def delete_certificate(cert_id: str):
+    res = await db.certificates.delete_one({"id": cert_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Certificate not found")
     return {"deleted": True}
 
 

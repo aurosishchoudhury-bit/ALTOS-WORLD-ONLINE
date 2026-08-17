@@ -137,6 +137,21 @@ export const api = {
   async deleteBanner(id: string) {
     return handle(await fetch(`${API}/banners/${id}`, { method: "DELETE" }));
   },
+  async listCertificates(): Promise<any[]> {
+    return handle(await fetch(`${API}/certificates`));
+  },
+  async addCertificate(image: string) {
+    return handle(
+      await fetch(`${API}/certificates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+      }),
+    );
+  },
+  async deleteCertificate(id: string) {
+    return handle(await fetch(`${API}/certificates/${id}`, { method: "DELETE" }));
+  },
   async listDiseases(): Promise<any[]> {
     return handle(await fetch(`${API}/diseases`));
   },
