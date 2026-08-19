@@ -18,6 +18,14 @@ export function openWhatsApp(text: string, phone?: string) {
   Linking.openURL(url).catch(() => {});
 }
 
+/** Opens a WhatsApp chat with the store admin for bulk order enquiries. */
+export function openBulkOrderChat() {
+  openWhatsApp(
+    "Hi Altos World! I would like to place a *bulk order*. Please share pricing and availability details.",
+    STORE_WHATSAPP,
+  );
+}
+
 export const orderCode = (id: string) => `#${String(id).slice(0, 8).toUpperCase()}`;
 
 const itemLines = (order: any): string =>

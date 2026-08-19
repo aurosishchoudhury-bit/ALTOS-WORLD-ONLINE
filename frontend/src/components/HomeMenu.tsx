@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import AppText from "./AppText";
+import { openBulkOrderChat } from "@/src/utils/whatsapp";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 type Props = {
@@ -112,6 +113,15 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
               onPress={() => go("/terms")}
             />
             <Item testID="menu-contact" icon="phone" label="Contact Us" onPress={() => go("/contact")} />
+            <Item
+              testID="menu-bulk-orders"
+              icon="package"
+              label="For Bulk Orders — Click Here"
+              onPress={() => {
+                onClose();
+                openBulkOrderChat();
+              }}
+            />
           </ScrollView>
 
           <AppText variant="body" color={colors.muted} style={styles.footerText}>

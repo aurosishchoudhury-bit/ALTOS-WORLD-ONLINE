@@ -17,6 +17,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Shop by Disease: home button, list with search bar, disease detail with "Recommended Dosage" table (product name + dosage), admin dosage input per mapped product — VERIFIED WORKING (June 2026)
 - Customer ratings & reviews, packing/weight info display
 - About Us + downloadable certificates gallery, WhatsApp support FAB
+- Bulk Orders via WhatsApp (June 2026): "For Bulk Orders — Click Here" green button at bottom of home page + menu item in hamburger drawer; both open WhatsApp chat with admin (917735454828) with pre-filled bulk order message.
 - Order success + WhatsApp order confirmation; manual Shiprocket status toggles in admin
 - Coupons/discounts (June 2026): admin creates coupons (percent or flat, audience: Altos ID holders vs non-Altos, optional min order, start/end dates, active flag) at /admin/coupons. Customers tap "Apply Coupon" at checkout to see available offers; one use per mobile number (recorded in coupon_redemptions on payment success). Fully tested — iteration_8.json.
 

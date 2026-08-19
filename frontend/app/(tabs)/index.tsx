@@ -14,7 +14,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import AppText from "@/src/components/AppText";
@@ -27,6 +27,7 @@ import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { api, Product, resolveImageUri } from "@/src/api/client";
 import { getPriceInfo } from "@/src/utils/pricing";
+import { openBulkOrderChat } from "@/src/utils/whatsapp";
 import { colors, spacing, radius, fonts, formatINR } from "@/src/theme/theme";
 
 const { width } = Dimensions.get("window");
@@ -332,6 +333,20 @@ export default function Storefront() {
             onAdd={() => onAdd(item)}
           />
         )}
+        ListFooterComponent={
+          <Pressable testID="bulk-order-button" onPress={openBulkOrderChat} style={styles.bulkBtn}>
+            <FontAwesome name="whatsapp" size={20} color="#FFFFFF" />
+            <View style={{ flex: 1 }}>
+              <AppText variant="semibold" style={styles.bulkBtnTitle}>
+                For Bulk Orders — Click Here
+              </AppText>
+              <AppText variant="body" style={styles.bulkBtnSub}>
+                Chat directly with us on WhatsApp
+              </AppText>
+            </View>
+            <Feather name="chevron-right" size={18} color="#FFFFFF" />
+          </Pressable>
+        }
         ListEmptyComponent={
           <View style={styles.center}>
             {error ? (
@@ -382,6 +397,19 @@ export default function Storefront() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  bulkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: "#25D366",
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+  },
+  bulkBtnTitle: { fontSize: 15, color: "#FFFFFF" },
+  bulkBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 1 },
   center: {
     paddingVertical: spacing["3xl"],
     alignItems: "center",
