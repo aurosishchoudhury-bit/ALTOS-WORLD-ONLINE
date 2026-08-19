@@ -191,6 +191,7 @@ class CreateOrderRequest(BaseModel):
     items: List[CartItemIn] = Field(min_length=1)
     customer: Customer
     altos_verified: bool = False
+    coupon_code: str = Field(default="", max_length=30)
 
 
 class VerifyRequest(BaseModel):
@@ -214,6 +215,30 @@ class OrderStatusUpdate(BaseModel):
     awb: Optional[str] = None
     courier_name: Optional[str] = None
     tracking_url: Optional[str] = None
+
+
+class CouponIn(BaseModel):
+    code: str = Field(min_length=3, max_length=20)
+    description: str = Field(default="", max_length=200)
+    discount_type: str = Field(default="percent")  # percent | flat
+    value: float = Field(gt=0)
+    audience: str = Field(default="non_altos")  # altos | non_altos
+    min_order: float = Field(default=0, ge=0)
+    start_date: str = Field(min_length=10, max_length=10)  # YYYY-MM-DD
+    end_date: str = Field(min_length=10, max_length=10)  # YYYY-MM-DD
+    active: bool = True
+
+
+class Coupon(CouponIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
+class CouponValidateRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=30)
+    phone: str = Field(default="", max_length=20)
+    altos_verified: bool = False
+    subtotal: float = 0
 
 
 # ---------------- Product routes ----------------
@@ -508,11 +533,161 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
     return round(subtotal, 2), shipping, round(total_weight, 1), round(total_bv, 1), total, snapshot
 
 
+# ---------------- Coupons ----------------
+def _today_str() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _norm_phone(phone: str) -> str:
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    return digits[-10:] if len(digits) >= 10 else digits
+
+
+def _coupon_discount(coupon: dict, subtotal: float) -> float:
+    if coupon.get("discount_type") == "percent":
+        d = subtotal * float(coupon["value"]) / 100.0
+    else:
+        d = float(coupon["value"])
+    return round(min(d, subtotal), 2)
+
+
+async def _check_coupon(code: str, phone: str, altos_verified: bool, subtotal: float):
+    """Validate a coupon for this customer. Returns (coupon, discount) or raises HTTPException."""
+    coupon = await db.coupons.find_one({"code": code.strip().upper()}, {"_id": 0})
+    if not coupon:
+        raise HTTPException(400, "Invalid coupon code")
+    if not coupon.get("active", True):
+        raise HTTPException(400, "This coupon is no longer active")
+    today = _today_str()
+    if coupon.get("start_date") and today < coupon["start_date"]:
+        raise HTTPException(400, f"Coupon valid from {coupon['start_date']}")
+    if coupon.get("end_date") and today > coupon["end_date"]:
+        raise HTTPException(400, "This coupon has expired")
+    audience = coupon.get("audience", "non_altos")
+    if audience == "altos" and not altos_verified:
+        raise HTTPException(400, "This coupon is only for Altos ID holders")
+    if audience == "non_altos" and altos_verified:
+        raise HTTPException(400, "This coupon is only for non-Altos customers")
+    min_order = float(coupon.get("min_order") or 0)
+    if subtotal < min_order:
+        raise HTTPException(400, f"Minimum order of ₹{min_order:g} required for this coupon")
+    norm = _norm_phone(phone)
+    if not norm:
+        raise HTTPException(400, "Enter your mobile number to use a coupon")
+    used = await db.coupon_redemptions.find_one({"coupon_id": coupon["id"], "phone": norm})
+    if used:
+        raise HTTPException(400, "This coupon was already used with this mobile number")
+    return coupon, _coupon_discount(coupon, subtotal)
+
+
+async def _record_redemption(order: dict):
+    """Record one-time coupon usage per mobile number after successful payment."""
+    if not order.get("coupon_id"):
+        return
+    norm = _norm_phone(order.get("customer", {}).get("phone", ""))
+    existing = await db.coupon_redemptions.find_one({"coupon_id": order["coupon_id"], "phone": norm})
+    if not existing:
+        await db.coupon_redemptions.insert_one({
+            "id": str(uuid.uuid4()),
+            "coupon_id": order["coupon_id"],
+            "code": order.get("coupon_code", ""),
+            "phone": norm,
+            "order_id": order["id"],
+            "created_at": now_iso(),
+        })
+
+
+@api_router.get("/coupons")
+async def list_coupons():
+    docs = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for c in docs:
+        c["used_count"] = await db.coupon_redemptions.count_documents({"coupon_id": c["id"]})
+    return docs
+
+
+def _validate_coupon_fields(data: dict):
+    if data["discount_type"] not in ("percent", "flat"):
+        raise HTTPException(400, "discount_type must be percent or flat")
+    if data["audience"] not in ("altos", "non_altos"):
+        raise HTTPException(400, "audience must be altos or non_altos")
+    if data["discount_type"] == "percent" and data["value"] > 100:
+        raise HTTPException(400, "Percent discount cannot exceed 100")
+    if data["end_date"] < data["start_date"]:
+        raise HTTPException(400, "End date must be after start date")
+
+
+@api_router.post("/coupons")
+async def create_coupon(payload: CouponIn):
+    data = payload.dict()
+    data["code"] = data["code"].strip().upper()
+    _validate_coupon_fields(data)
+    if await db.coupons.find_one({"code": data["code"]}):
+        raise HTTPException(400, "A coupon with this code already exists")
+    coupon = Coupon(**data)
+    await db.coupons.insert_one(coupon.dict())
+    return coupon.dict()
+
+
+@api_router.put("/coupons/{coupon_id}")
+async def update_coupon(coupon_id: str, payload: CouponIn):
+    data = payload.dict()
+    data["code"] = data["code"].strip().upper()
+    _validate_coupon_fields(data)
+    if await db.coupons.find_one({"code": data["code"], "id": {"$ne": coupon_id}}):
+        raise HTTPException(400, "A coupon with this code already exists")
+    res = await db.coupons.update_one({"id": coupon_id}, {"$set": data})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Coupon not found")
+    return await db.coupons.find_one({"id": coupon_id}, {"_id": 0})
+
+
+@api_router.delete("/coupons/{coupon_id}")
+async def delete_coupon(coupon_id: str):
+    res = await db.coupons.delete_one({"id": coupon_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Coupon not found")
+    return {"ok": True}
+
+
+@api_router.get("/coupons/available")
+async def available_coupons(altos: bool = False, phone: str = "", subtotal: float = 0):
+    audience = "altos" if altos else "non_altos"
+    today = _today_str()
+    docs = await db.coupons.find(
+        {"audience": audience, "active": True, "start_date": {"$lte": today}, "end_date": {"$gte": today}},
+        {"_id": 0},
+    ).sort("value", -1).to_list(100)
+    norm = _norm_phone(phone)
+    out = []
+    for c in docs:
+        if norm and await db.coupon_redemptions.find_one({"coupon_id": c["id"], "phone": norm}):
+            continue
+        c["eligible"] = subtotal >= float(c.get("min_order") or 0)
+        c["discount_preview"] = _coupon_discount(c, subtotal) if c["eligible"] else 0
+        out.append(c)
+    return out
+
+
+@api_router.post("/coupons/validate")
+async def validate_coupon(payload: CouponValidateRequest):
+    coupon, discount = await _check_coupon(
+        payload.code, payload.phone, payload.altos_verified, payload.subtotal
+    )
+    return {"valid": True, "code": coupon["code"], "coupon_id": coupon["id"], "discount": discount}
+
+
 @api_router.post("/checkout/create-order")
 async def create_order(payload: CreateOrderRequest):
     subtotal, shipping, total_weight, total_bv, total, snapshot = await _price_cart(
         payload.items, payload.altos_verified
     )
+    coupon = None
+    discount = 0.0
+    if payload.coupon_code.strip():
+        coupon, discount = await _check_coupon(
+            payload.coupon_code, payload.customer.phone, payload.altos_verified, subtotal
+        )
+        total = round(subtotal - discount + shipping, 2)
     amount_paise = int(round(total * 100))
     order_id = str(uuid.uuid4())
     receipt = "rcpt_" + order_id[:30]
@@ -536,6 +711,9 @@ async def create_order(payload: CreateOrderRequest):
         "amount_paise": amount_paise,
         "subtotal": subtotal,
         "shipping_charge": shipping,
+        "coupon_code": coupon["code"] if coupon else "",
+        "coupon_id": coupon["id"] if coupon else "",
+        "discount": discount,
         "total_weight_grams": total_weight,
         "total_bv": total_bv if payload.altos_verified else 0,
         "currency": "INR",
@@ -555,6 +733,8 @@ async def create_order(payload: CreateOrderRequest):
         "amount_paise": amount_paise,
         "subtotal": subtotal,
         "shipping_charge": shipping,
+        "coupon_code": coupon["code"] if coupon else "",
+        "discount": discount,
         "total_weight_grams": total_weight,
         "total_bv": total_bv if payload.altos_verified else 0,
         "currency": "INR",
@@ -584,6 +764,7 @@ async def verify_payment(payload: VerifyRequest):
             "paid_at": now_iso(),
         }},
     )
+    await _record_redemption(saved)
     return {"ok": True, "order_id": payload.order_id, "status": "paid"}
 
 
@@ -602,6 +783,7 @@ async def demo_complete(payload: DemoCompleteRequest):
             "paid_at": now_iso(),
         }},
     )
+    await _record_redemption(saved)
     return {"ok": True, "order_id": payload.order_id, "status": "paid"}
 
 

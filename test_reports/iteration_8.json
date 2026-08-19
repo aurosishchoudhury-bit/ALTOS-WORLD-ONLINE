@@ -1,0 +1,32 @@
+{
+  "summary": "Coupon/discount feature — backend + frontend full-flow testing. Backend: 16/16 pytest tests passed (CRUD, validation errors, /available filter+eligible flag, /validate audience/date/min-order/phone rules, and end-to-end create-order → demo-complete → same-phone rejected / different-phone allowed). Frontend: Admin coupons screen (create/edit/delete via + modal with type & audience chips) works; Checkout flow verified end-to-end — empty-phone toast ('Enter your phone number first to view coupons') shown, WELCOME10 (non_altos) visible & ALTOS100 (altos-only) hidden for guest, tapping APPLY applied discount (₹65 → −₹7 → total ₹59), remove (x-circle) cleared the coupon, Pay button reduced amount, demo payment succeeded (order-success screen shown with Total paid ₹59), and re-attempt with the same phone number returns 400 'This coupon was already used with this mobile number' + available list now hides that coupon. No React Native red screen. Only cosmetic warnings (deprecated shadow* styles, font sfntVersion decode, props.pointerEvents) — pre-existing across the app, not related to this feature.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_coupons.py",
+    "/app/test_reports/pytest/pytest_coupons.xml"
+  ],
+  "action_items": [
+    "None for the coupon feature — backend and frontend flows are fully working.",
+    "(Pre-existing, not blocking) React Native web warnings: 'shadow* deprecated — use boxShadow', 'props.pointerEvents deprecated — use style.pointerEvents', and Cormorant font 'OTS parsing error: invalid sfntVersion' on the web preview. These are visible across the app, not introduced by the coupon feature."
+  ],
+  "critical_code_review_comments": [
+    "server.py handles coupon audience/date/min-order/phone rules via _check_coupon(); redemption is atomically recorded in coupon_redemptions on demo-complete + verify. Normalisation to last-10-digits via _norm_phone is consistent between /available filtering and /validate.",
+    "Create-order recomputes discount server-side using _check_coupon() so client-side tampering with coupon_code cannot inflate discount — good.",
+    "Coupon list endpoint attaches used_count via count_documents per row (N+1). Fine for admin-scale (200 max), but consider a single $lookup aggregation if the coupon count grows.",
+    "checkout.tsx: openCoupons blocks when phone.length < 6; validateCoupon on APPLY also re-checks server-side — proper double-check.",
+    "admin/coupons.tsx: dates are free-text YYYY-MM-DD FormFields. Consider a date picker later; today form-level validation is only 'end < start' server-side (which is enforced)."
+  ],
+  "updated_files": ["/app/backend/tests/test_coupons.py"],
+  "success_rate": {"backend": "100% (16/16 pytest)", "frontend": "100% (all 8 checkout/admin verification checks passed)"},
+  "seed_data_creation": "Test-only coupons were created with unique random codes (TESTP*, TESTF*, DUPL*, UPD*, DEL*, AVAIL*, INACT*, ALTOSO*, MINOR*, VAUD*, VNON*, EXP*, MIN*, NOPH*, OK*, FLOW*) and all deleted in class teardown. One UI test coupon (UITST48922) was also created and deleted through the UI. Redemptions were created for phones 9000000101, 9000000201 against WELCOME10 (from the UI checkout) and against a FLOW* test coupon during backend test. Seed coupons WELCOME10 and ALTOS100 were NOT modified or deleted, per instruction.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Coupon feature validated end-to-end. Two live redemptions exist against WELCOME10: phone 9000000101 (backend test — TestCouponCheckoutFlow) and 9000000201 (UI checkout test). Use FRESH phones (e.g. 9000000301+) for any future WELCOME10 retesting. /app/backend/tests/test_coupons.py is now the canonical regression suite for coupons and is safe to re-run (all data is cleaned up on class teardown; the FLOW* coupon-checkout test uses its own fresh coupon code so it does not depend on WELCOME10 state).",
+  "rca_of_issue": "No bug to RCA — this was a new-feature verification. All 4 backend rule paths and all 4 frontend integration paths behaved as designed."
+}

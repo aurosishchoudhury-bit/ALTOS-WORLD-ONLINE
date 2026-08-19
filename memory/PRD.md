@@ -18,10 +18,13 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Customer ratings & reviews, packing/weight info display
 - About Us + downloadable certificates gallery, WhatsApp support FAB
 - Order success + WhatsApp order confirmation; manual Shiprocket status toggles in admin
+- Coupons/discounts (June 2026): admin creates coupons (percent or flat, audience: Altos ID holders vs non-Altos, optional min order, start/end dates, active flag) at /admin/coupons. Customers tap "Apply Coupon" at checkout to see available offers; one use per mobile number (recorded in coupon_redemptions on payment success). Fully tested — iteration_8.json.
 
 ## Key Schemas
 - products: {id, name, description, price(DP), mrp, offer_price, weight_grams, weight, category, stock, images[], bv, featured}
 - diseases: {id, name, product_ids[], dosages: {product_id: dosage_text}}
+- coupons: {id, code, description, discount_type(percent|flat), value, audience(altos|non_altos), min_order, start_date, end_date, active}
+- coupon_redemptions: {id, coupon_id, code, phone(normalized last 10 digits), order_id}
 - orders: {id, items, total, total_bv, status, customer}
 - banners/certificates: {id, image_url}
 

@@ -309,6 +309,17 @@ export default function Admin() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               </Pressable>
+              <Pressable
+                testID="manage-coupons"
+                onPress={() => router.push("/admin/coupons")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="tag" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  Coupons — create & manage discounts
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
               {products.some((p) => p.stock <= LOW_STOCK_THRESHOLD) ? (
                 <View style={styles.lowStockBanner} testID="low-stock-banner">
                   <Feather name="alert-triangle" size={16} color="#B45309" />

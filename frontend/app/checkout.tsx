@@ -33,6 +33,40 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponModal, setCouponModal] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+
+  const payable = Math.max(0, total - (coupon?.discount || 0));
+
+  const openCoupons = async () => {
+    if (phone.trim().length < 6) {
+      toast.show("Enter your phone number first to view coupons");
+      return;
+    }
+    setCouponModal(true);
+    setLoadingCoupons(true);
+    try {
+      const list = await api.availableCoupons(verified, phone.trim(), subtotal);
+      setAvailableCoupons(list);
+    } catch {
+      setAvailableCoupons([]);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  const applyCoupon = async (c: any) => {
+    try {
+      const res = await api.validateCoupon(c.code, phone.trim(), verified, subtotal);
+      setCoupon({ code: res.code, discount: res.discount });
+      setCouponModal(false);
+      toast.show(`Coupon ${res.code} applied — you save ${formatINR(res.discount)}`);
+    } catch (e: any) {
+      toast.show(e?.message || "Could not apply coupon");
+    }
+  };
 
   const validate = () => {
     if (!name.trim()) return "Please enter your name";
@@ -64,7 +98,7 @@ export default function Checkout() {
         address: address.trim(),
         altos_id: verified ? altosId.trim() : "",
       };
-      const order = await api.createOrder(items, customer, verified);
+      const order = await api.createOrder(items, customer, verified, coupon?.code || "");
 
       if (order.demo) {
         // Demo mode: no live Razorpay keys yet — simulate a successful payment.
@@ -211,6 +245,30 @@ export default function Checkout() {
             </AppText>
           )}
         </View>
+        {coupon ? (
+          <View style={styles.summaryRow}>
+            <View style={styles.couponApplied}>
+              <Feather name="tag" size={14} color={colors.success} />
+              <AppText variant="body" color={colors.onSurfaceSecondary}>
+                Coupon ({coupon.code})
+              </AppText>
+              <Pressable testID="remove-coupon" onPress={() => setCoupon(null)} hitSlop={8}>
+                <Feather name="x-circle" size={15} color={colors.muted} />
+              </Pressable>
+            </View>
+            <AppText variant="medium" color={colors.success} testID="checkout-discount">
+              −{formatINR(coupon.discount)}
+            </AppText>
+          </View>
+        ) : (
+          <Pressable testID="open-coupons" onPress={openCoupons} style={styles.couponBtn}>
+            <Feather name="tag" size={15} color={colors.brand} />
+            <AppText variant="semibold" style={styles.couponBtnText}>
+              Apply Coupon — view available offers
+            </AppText>
+            <Feather name="chevron-right" size={15} color={colors.muted} />
+          </Pressable>
+        )}
         {verified && totalBV > 0 && (
           <View style={styles.summaryRow}>
             <AppText variant="body" color={colors.onSurfaceSecondary}>
@@ -225,8 +283,8 @@ export default function Checkout() {
           <AppText variant="displaySemiBold" style={styles.totalText}>
             Total
           </AppText>
-          <AppText variant="displaySemiBold" style={styles.totalText}>
-            {formatINR(total)}
+          <AppText variant="displaySemiBold" style={styles.totalText} testID="checkout-total">
+            {formatINR(payable)}
           </AppText>
         </View>
       </KeyboardAwareScrollView>
@@ -235,13 +293,69 @@ export default function Checkout() {
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <Button
             testID="pay-button"
-            label={`Pay with Razorpay · ${formatINR(total)}`}
+            label={`Pay with Razorpay · ${formatINR(payable)}`}
             onPress={onPay}
             loading={submitting}
             disabled={lines.length === 0}
           />
         </View>
       </KeyboardStickyView>
+
+      <Modal visible={couponModal} transparent animationType="fade" onRequestClose={() => setCouponModal(false)}>
+        <View style={styles.couponOverlay}>
+          <View style={styles.couponCard}>
+            <View style={styles.couponHeader}>
+              <AppText variant="displaySemiBold" style={styles.couponTitle}>
+                Available Coupons
+              </AppText>
+              <Pressable testID="close-coupons" onPress={() => setCouponModal(false)} hitSlop={8}>
+                <Feather name="x" size={20} color={colors.onSurface} />
+              </Pressable>
+            </View>
+            {loadingCoupons ? (
+              <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.xl }} />
+            ) : availableCoupons.length === 0 ? (
+              <AppText variant="body" color={colors.muted} style={styles.couponEmpty}>
+                No coupons available for you right now.
+              </AppText>
+            ) : (
+              availableCoupons.map((c) => (
+                <Pressable
+                  key={c.id}
+                  testID={`apply-coupon-${c.code}`}
+                  onPress={() => c.eligible && applyCoupon(c)}
+                  style={[styles.couponRow, !c.eligible && { opacity: 0.5 }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="semibold" style={styles.couponCode}>
+                      {c.code}
+                    </AppText>
+                    {!!c.description && (
+                      <AppText variant="body" color={colors.muted} style={styles.couponDesc}>
+                        {c.description}
+                      </AppText>
+                    )}
+                    <AppText variant="body" color={colors.muted} style={styles.couponDesc}>
+                      {c.discount_type === "percent" ? `${c.value}% OFF` : `${formatINR(c.value)} OFF`}
+                      {c.min_order > 0 ? ` · Min order ${formatINR(c.min_order)}` : ""} · Valid till {c.end_date}
+                    </AppText>
+                    {!c.eligible && (
+                      <AppText variant="body" color={colors.error} style={styles.couponDesc}>
+                        Add {formatINR(c.min_order - subtotal)} more to use this coupon
+                      </AppText>
+                    )}
+                  </View>
+                  {c.eligible && (
+                    <AppText variant="semibold" color={colors.brand} style={styles.couponApplyText}>
+                      APPLY
+                    </AppText>
+                  )}
+                </Pressable>
+              ))
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!webviewUrl} animationType="slide" onRequestClose={() => setWebviewUrl(null)}>
         <View style={styles.webviewContainer}>
@@ -306,6 +420,53 @@ const styles = StyleSheet.create({
   },
   summaryName: { flex: 1, marginRight: spacing.md, fontSize: 14 },
   totalText: { fontSize: 22 },
+  couponBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    marginVertical: spacing.sm,
+  },
+  couponBtnText: { flex: 1, fontSize: 13, color: colors.brand },
+  couponApplied: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 },
+  couponOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(20,24,20,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+  },
+  couponCard: {
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "80%",
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.xl,
+  },
+  couponHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.lg,
+  },
+  couponTitle: { fontSize: 18 },
+  couponEmpty: { fontSize: 13, textAlign: "center", marginVertical: spacing.xl },
+  couponRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  couponCode: { fontSize: 15, letterSpacing: 0.5 },
+  couponDesc: { fontSize: 12, marginTop: 2 },
+  couponApplyText: { fontSize: 13 },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

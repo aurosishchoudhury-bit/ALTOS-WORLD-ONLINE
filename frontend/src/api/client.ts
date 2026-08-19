@@ -82,12 +82,13 @@ export const api = {
     items: { id: string; quantity: number }[],
     customer: Customer,
     altosVerified: boolean,
+    couponCode = "",
   ) {
     return handle(
       await fetch(`${API}/checkout/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, customer, altos_verified: altosVerified }),
+        body: JSON.stringify({ items, customer, altos_verified: altosVerified, coupon_code: couponCode }),
       }),
     );
   },
@@ -221,6 +222,43 @@ export const api = {
   },
   async shiprocketSync(): Promise<{ checked: number; shiprocket_orders: number; updated: any[] }> {
     return handle(await fetch(`${API}/shiprocket/sync`, { method: "POST" }));
+  },
+  async listCoupons(): Promise<any[]> {
+    return handle(await fetch(`${API}/coupons`));
+  },
+  async createCoupon(data: any) {
+    return handle(
+      await fetch(`${API}/coupons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async updateCoupon(id: string, data: any) {
+    return handle(
+      await fetch(`${API}/coupons/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async deleteCoupon(id: string) {
+    return handle(await fetch(`${API}/coupons/${id}`, { method: "DELETE" }));
+  },
+  async availableCoupons(altos: boolean, phone: string, subtotal: number): Promise<any[]> {
+    const q = `?altos=${altos}&phone=${encodeURIComponent(phone)}&subtotal=${subtotal}`;
+    return handle(await fetch(`${API}/coupons/available${q}`));
+  },
+  async validateCoupon(code: string, phone: string, altosVerified: boolean, subtotal: number) {
+    return handle(
+      await fetch(`${API}/coupons/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, phone, altos_verified: altosVerified, subtotal }),
+      }),
+    );
   },
   webviewUrl(orderId: string): string {
     return `${API}/checkout/webview/${orderId}`;
