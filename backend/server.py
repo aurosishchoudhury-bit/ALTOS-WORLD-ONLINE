@@ -194,6 +194,7 @@ class CreateOrderRequest(BaseModel):
     customer: Customer
     altos_verified: bool = False
     coupon_code: str = Field(default="", max_length=30)
+    payment_mode: str = Field(default="full")  # full | partial_cod
 
 
 class VerifyRequest(BaseModel):
@@ -629,10 +630,15 @@ async def _paid_orders_for_month(month: str) -> List[dict]:
     return rows
 
 
+def _order_value(order: dict) -> float:
+    """Full billing value of the order (partial-COD orders store 30% in `amount`)."""
+    return float(order.get("total_billing") or order.get("amount") or 0)
+
+
 def _summarise(rows: List[dict]) -> dict:
     return {
         "total_orders": len(rows),
-        "total_revenue": round(sum(float(o.get("amount") or 0) for o in rows), 2),
+        "total_revenue": round(sum(_order_value(o) for o in rows), 2),
         "total_items": sum(_items_count(o) for o in rows),
         "total_bv": round(sum(float(o.get("total_bv") or 0) for o in rows), 1),
         "total_discount": round(sum(float(o.get("discount") or 0) for o in rows), 2),
@@ -663,7 +669,7 @@ def _build_sales_csv(month: str, rows: List[dict], summary: dict) -> bytes:
     w.writerow(["Total BV", summary["total_bv"]])
     w.writerow(["Total Discount Given (INR)", summary["total_discount"]])
     w.writerow([])
-    w.writerow(["Date", "Order #", "Customer", "Phone", "Items", "Amount (INR)", "Status"])
+    w.writerow(["Date", "Order #", "Customer", "Phone", "Items", "Amount (INR)", "Payment", "COD Due (INR)", "Status"])
     for o in rows:
         w.writerow([
             _order_date(o),
@@ -671,7 +677,9 @@ def _build_sales_csv(month: str, rows: List[dict], summary: dict) -> bytes:
             o.get("customer", {}).get("name", ""),
             o.get("customer", {}).get("phone", ""),
             _items_count(o),
-            float(o.get("amount") or 0),
+            _order_value(o),
+            "Partial COD" if o.get("payment_mode") == "partial_cod" else "Full Online",
+            float(o.get("cod_due") or 0),
             o.get("status", ""),
         ])
     return buf.getvalue().encode("utf-8")
@@ -719,8 +727,8 @@ def _build_sales_pdf(month: str, rows: List[dict], summary: dict) -> bytes:
     pdf.ln(4)
 
     # Table header
-    headers = ["Date", "Order #", "Customer", "Phone", "Items", "Amount (INR)", "Status"]
-    widths = [26, 26, 70, 34, 18, 40, 30]
+    headers = ["Date", "Order #", "Customer", "Phone", "Items", "Amount", "Payment", "COD Due", "Status"]
+    widths = [24, 24, 58, 30, 14, 30, 34, 28, 24]
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_fill_color(240, 240, 240)
     pdf.set_x(10)
@@ -730,14 +738,17 @@ def _build_sales_pdf(month: str, rows: List[dict], summary: dict) -> bytes:
 
     pdf.set_font("Helvetica", "", 9)
     for o in rows:
-        cust = (o.get("customer", {}).get("name", "") or "")[:32]
+        cust = (o.get("customer", {}).get("name", "") or "")[:28]
+        partial = o.get("payment_mode") == "partial_cod"
         cells = [
             _order_date(o),
             str(o.get("id", ""))[:8].upper(),
             cust,
             o.get("customer", {}).get("phone", ""),
             str(_items_count(o)),
-            f"{float(o.get('amount') or 0):.2f}",
+            f"{_order_value(o):.2f}",
+            "Partial COD" if partial else "Full Online",
+            f"{float(o.get('cod_due') or 0):.2f}",
             o.get("status", ""),
         ]
         pdf.set_x(10)
@@ -795,6 +806,9 @@ HEAVY_ITEM_MAX_QTY = 2
 # Minimum cart subtotal required to place an order.
 MIN_PURCHASE_ALTOS = 599.0  # verified Altos ID holders
 MIN_PURCHASE_REGULAR = 399.0  # non-Altos customers
+
+# Partial COD: advance fraction charged online (rest collected on delivery). Non-Altos only.
+COD_ADVANCE_RATE = 0.30
 
 
 def _min_purchase(altos_verified: bool) -> float:
@@ -1010,7 +1024,21 @@ async def create_order(payload: CreateOrderRequest):
             payload.coupon_code, payload.customer.phone, payload.altos_verified, subtotal
         )
         total = round(subtotal - discount + shipping, 2)
-    amount_paise = int(round(total * 100))
+
+    # Payment mode: full online, or partial COD (30% advance online, 70% on delivery).
+    # Partial COD is only available to non-Altos customers.
+    mode = payload.payment_mode if payload.payment_mode in ("full", "partial_cod") else "full"
+    if mode == "partial_cod" and payload.altos_verified:
+        raise HTTPException(400, "Partial COD is not available for Altos ID holders")
+    total_billing = total
+    if mode == "partial_cod":
+        charge_amount = round(total_billing * COD_ADVANCE_RATE, 2)
+        cod_due = round(total_billing - charge_amount, 2)
+    else:
+        charge_amount = total_billing
+        cod_due = 0.0
+
+    amount_paise = int(round(charge_amount * 100))
     order_id = str(uuid.uuid4())
     receipt = "rcpt_" + order_id[:30]
 
@@ -1029,8 +1057,12 @@ async def create_order(payload: CreateOrderRequest):
         "id": order_id,
         "receipt": receipt,
         "razorpay_order_id": razorpay_order_id,
-        "amount": total,
+        "amount": charge_amount,
         "amount_paise": amount_paise,
+        "payment_mode": mode,
+        "total_billing": total_billing,
+        "advance_amount": charge_amount if mode == "partial_cod" else 0,
+        "cod_due": cod_due,
         "subtotal": subtotal,
         "shipping_charge": shipping,
         "coupon_code": coupon["code"] if coupon else "",
@@ -1051,8 +1083,11 @@ async def create_order(payload: CreateOrderRequest):
     return {
         "order_id": order_id,
         "razorpay_order_id": razorpay_order_id,
-        "amount": total,
+        "amount": charge_amount,
         "amount_paise": amount_paise,
+        "payment_mode": mode,
+        "total_billing": total_billing,
+        "cod_due": cod_due,
         "subtotal": subtotal,
         "shipping_charge": shipping,
         "coupon_code": coupon["code"] if coupon else "",

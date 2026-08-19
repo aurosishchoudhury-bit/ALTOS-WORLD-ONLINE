@@ -12,6 +12,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - BV (Business Volume) totals + gated WhatsApp Instant BV button
 - Weight-based shipping calculation, max-qty constraints for heavy items
 - Minimum purchase (June 2026): cart subtotal must be ≥ ₹399 for non-Altos customers and ≥ ₹599 for Altos ID holders. Enforced in backend /checkout/create-order and shown in cart (notice + disabled checkout button with "Add ₹X more"). Constants in backend server.py (_min_purchase) and frontend pricing.ts (minPurchaseFor).
+- Partial COD (June 2026): non-Altos customers can choose at checkout between "Pay Full Online" and "Partial COD (pay 30% now via Razorpay, remaining 70% cash on delivery)". Altos ID holders always pay full online (COD rejected backend-side). Order stores payment_mode, total_billing, advance_amount, cod_due; amount = online charge. order-success + WhatsApp confirmation show the split. Sales report Amount uses full billing and adds Payment mode + COD Due columns. Backend: COD_ADVANCE_RATE=0.30 in server.py.
 - Multi-image products (up to 4) via Emergent Object Storage + full-screen image viewer
 - Home banners (auto-scroll carousel, admin gallery uploads)
 - Admin dashboard: products CRUD, orders, low-stock alerts, banners, certificates, diseases

@@ -74,10 +74,14 @@ const itemLines = (order: any): string =>
   (order.items || []).map((i: any) => `• ${i.name} × ${i.quantity}`).join("\n");
 
 export function orderConfirmationMessage(order: any): string {
+  const partial = order.payment_mode === "partial_cod";
+  const payLines = partial
+    ? `Paid now (30% advance): ₹${order.amount}\nCash on delivery: ₹${order.cod_due || 0}\nOrder total: ₹${order.total_billing || order.amount}\n\n`
+    : `Total paid: ₹${order.amount}\n\n`;
   return (
     `*Altos World — Order Confirmed*\n\n` +
     `Order ${orderCode(order.id)}\n${itemLines(order)}\n\n` +
-    `Total paid: ₹${order.amount}\n\n` +
+    payLines +
     `Hi ${order.customer?.name || "there"}, thank you for shopping with Altos World (Cuttack Super Zone). ` +
     `We'll message you the tracking details as soon as your order ships.`
   );

@@ -37,8 +37,12 @@ export default function Checkout() {
   const [couponModal, setCouponModal] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"full" | "partial_cod">("full");
 
-  const payable = Math.max(0, total - (coupon?.discount || 0));
+  const billing = Math.max(0, total - (coupon?.discount || 0));
+  const usePartial = !verified && paymentMode === "partial_cod";
+  const onlineNow = usePartial ? Math.round(billing * 0.3 * 100) / 100 : billing;
+  const codDue = usePartial ? Math.round((billing - onlineNow) * 100) / 100 : 0;
 
   const openCoupons = async () => {
     if (phone.trim().length < 6) {
@@ -98,7 +102,13 @@ export default function Checkout() {
         address: address.trim(),
         altos_id: verified ? altosId.trim() : "",
       };
-      const order = await api.createOrder(items, customer, verified, coupon?.code || "");
+      const order = await api.createOrder(
+        items,
+        customer,
+        verified,
+        coupon?.code || "",
+        usePartial ? "partial_cod" : "full",
+      );
 
       if (order.demo) {
         // Demo mode: no live Razorpay keys yet — simulate a successful payment.
@@ -284,16 +294,83 @@ export default function Checkout() {
             Total
           </AppText>
           <AppText variant="displaySemiBold" style={styles.totalText} testID="checkout-total">
-            {formatINR(payable)}
+            {formatINR(billing)}
           </AppText>
         </View>
+
+        {!verified && (
+          <View style={styles.payModeWrap}>
+            <AppText variant="semibold" style={styles.payModeLabel}>
+              Payment option
+            </AppText>
+            <Pressable
+              testID="paymode-full"
+              onPress={() => setPaymentMode("full")}
+              style={[styles.payModeCard, paymentMode === "full" && styles.payModeCardOn]}
+            >
+              <Feather
+                name={paymentMode === "full" ? "check-circle" : "circle"}
+                size={18}
+                color={paymentMode === "full" ? colors.brand : colors.muted}
+              />
+              <View style={{ flex: 1 }}>
+                <AppText variant="semibold" style={styles.payModeTitle}>
+                  Pay Full Online
+                </AppText>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.payModeSub}>
+                  Pay {formatINR(billing)} now via Razorpay
+                </AppText>
+              </View>
+            </Pressable>
+            <Pressable
+              testID="paymode-partial"
+              onPress={() => setPaymentMode("partial_cod")}
+              style={[styles.payModeCard, paymentMode === "partial_cod" && styles.payModeCardOn]}
+            >
+              <Feather
+                name={paymentMode === "partial_cod" ? "check-circle" : "circle"}
+                size={18}
+                color={paymentMode === "partial_cod" ? colors.brand : colors.muted}
+              />
+              <View style={{ flex: 1 }}>
+                <AppText variant="semibold" style={styles.payModeTitle}>
+                  Partial COD (30% now)
+                </AppText>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.payModeSub}>
+                  Pay {formatINR(onlineNow)} now, {formatINR(codDue)} cash on delivery
+                </AppText>
+              </View>
+            </Pressable>
+          </View>
+        )}
+
+        {usePartial && (
+          <View style={styles.codSummary}>
+            <View style={styles.summaryRow}>
+              <AppText variant="body" color={colors.onSurfaceSecondary}>
+                Pay now (30% advance)
+              </AppText>
+              <AppText variant="semibold" testID="checkout-online-now">
+                {formatINR(onlineNow)}
+              </AppText>
+            </View>
+            <View style={styles.summaryRow}>
+              <AppText variant="body" color={colors.onSurfaceSecondary}>
+                Cash on delivery
+              </AppText>
+              <AppText variant="medium" testID="checkout-cod-due">
+                {formatINR(codDue)}
+              </AppText>
+            </View>
+          </View>
+        )}
       </KeyboardAwareScrollView>
 
       <KeyboardStickyView>
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <Button
             testID="pay-button"
-            label={`Pay with Razorpay · ${formatINR(payable)}`}
+            label={usePartial ? `Pay 30% now · ${formatINR(onlineNow)}` : `Pay with Razorpay · ${formatINR(billing)}`}
             onPress={onPay}
             loading={submitting}
             disabled={lines.length === 0}
@@ -467,6 +544,26 @@ const styles = StyleSheet.create({
   couponCode: { fontSize: 15, letterSpacing: 0.5 },
   couponDesc: { fontSize: 12, marginTop: 2 },
   couponApplyText: { fontSize: 13 },
+  payModeWrap: { marginTop: spacing.xl, gap: spacing.sm },
+  payModeLabel: { fontSize: 13, marginBottom: spacing.xs },
+  payModeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+  },
+  payModeCardOn: { borderColor: colors.brand, backgroundColor: colors.surfaceSecondary },
+  payModeTitle: { fontSize: 14 },
+  payModeSub: { fontSize: 12, marginTop: 2 },
+  codSummary: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSecondary,
+  },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

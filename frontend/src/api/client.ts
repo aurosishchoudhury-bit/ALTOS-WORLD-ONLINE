@@ -83,12 +83,19 @@ export const api = {
     customer: Customer,
     altosVerified: boolean,
     couponCode = "",
+    paymentMode: "full" | "partial_cod" = "full",
   ) {
     return handle(
       await fetch(`${API}/checkout/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, customer, altos_verified: altosVerified, coupon_code: couponCode }),
+        body: JSON.stringify({
+          items,
+          customer,
+          altos_verified: altosVerified,
+          coupon_code: couponCode,
+          payment_mode: paymentMode,
+        }),
       }),
     );
   },

@@ -71,10 +71,28 @@ export default function OrderSuccess() {
             </View>
             <View style={styles.cardRow}>
               <AppText variant="body" color={colors.onSurfaceSecondary}>
-                Total paid
+                {order.payment_mode === "partial_cod" ? "Paid now (30% advance)" : "Total paid"}
               </AppText>
               <AppText variant="semibold">{formatINR(order.amount)}</AppText>
             </View>
+            {order.payment_mode === "partial_cod" && (
+              <>
+                <View style={styles.cardRow}>
+                  <AppText variant="body" color={colors.onSurfaceSecondary}>
+                    Cash on delivery
+                  </AppText>
+                  <AppText variant="semibold" testID="success-cod-due">
+                    {formatINR(order.cod_due || 0)}
+                  </AppText>
+                </View>
+                <View style={styles.cardRow}>
+                  <AppText variant="body" color={colors.onSurfaceSecondary}>
+                    Order total
+                  </AppText>
+                  <AppText variant="medium">{formatINR(order.total_billing || order.amount)}</AppText>
+                </View>
+              </>
+            )}
           </Animated.View>
         )}
 
