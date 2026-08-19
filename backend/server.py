@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import io
+import csv
 import logging
 import hmac
 import hashlib
@@ -587,6 +589,191 @@ async def delete_registration(reg_id: str):
     if res.deleted_count == 0:
         raise HTTPException(404, "Registration not found")
     return {"ok": True}
+
+
+# ---------------- Monthly Sales Report (paid orders) ----------------
+_MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
+
+def _month_label(month: str) -> str:
+    """'2026-08' -> 'August 2026'"""
+    try:
+        y, m = month.split("-")
+        return f"{_MONTH_NAMES[int(m) - 1]} {y}"
+    except Exception:  # noqa: BLE001
+        return month
+
+
+def _order_month(order: dict) -> str:
+    """Bucket a paid order by paid_at (fallback created_at), first 7 chars = YYYY-MM."""
+    d = order.get("paid_at") or order.get("created_at") or ""
+    return d[:7]
+
+
+def _order_date(order: dict) -> str:
+    d = order.get("paid_at") or order.get("created_at") or ""
+    return d[:10]
+
+
+def _items_count(order: dict) -> int:
+    return sum(int(i.get("quantity") or 0) for i in order.get("items", []))
+
+
+async def _paid_orders_for_month(month: str) -> List[dict]:
+    docs = await db.orders.find({"status": "paid"}, {"_id": 0}).to_list(5000)
+    rows = [o for o in docs if _order_month(o) == month]
+    rows.sort(key=lambda o: o.get("paid_at") or o.get("created_at") or "")
+    return rows
+
+
+def _summarise(rows: List[dict]) -> dict:
+    return {
+        "total_orders": len(rows),
+        "total_revenue": round(sum(float(o.get("amount") or 0) for o in rows), 2),
+        "total_items": sum(_items_count(o) for o in rows),
+        "total_bv": round(sum(float(o.get("total_bv") or 0) for o in rows), 1),
+        "total_discount": round(sum(float(o.get("discount") or 0) for o in rows), 2),
+    }
+
+
+@api_router.get("/reports/sales/available-months")
+async def report_available_months():
+    docs = await db.orders.find({"status": "paid"}, {"_id": 0, "paid_at": 1, "created_at": 1}).to_list(5000)
+    counts: dict = {}
+    for o in docs:
+        m = _order_month(o)
+        if len(m) == 7:
+            counts[m] = counts.get(m, 0) + 1
+    months = sorted(counts.keys(), reverse=True)
+    return [{"month": m, "label": _month_label(m), "orders": counts[m]} for m in months]
+
+
+def _build_sales_csv(month: str, rows: List[dict], summary: dict) -> bytes:
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Altos World Online Store - Monthly Sales Report"])
+    w.writerow([f"Month: {_month_label(month)}"])
+    w.writerow([])
+    w.writerow(["Total Orders", summary["total_orders"]])
+    w.writerow(["Total Revenue (INR)", summary["total_revenue"]])
+    w.writerow(["Total Items Sold", summary["total_items"]])
+    w.writerow(["Total BV", summary["total_bv"]])
+    w.writerow(["Total Discount Given (INR)", summary["total_discount"]])
+    w.writerow([])
+    w.writerow(["Date", "Order #", "Customer", "Phone", "Items", "Amount (INR)", "Status"])
+    for o in rows:
+        w.writerow([
+            _order_date(o),
+            str(o.get("id", ""))[:8].upper(),
+            o.get("customer", {}).get("name", ""),
+            o.get("customer", {}).get("phone", ""),
+            _items_count(o),
+            float(o.get("amount") or 0),
+            o.get("status", ""),
+        ])
+    return buf.getvalue().encode("utf-8")
+
+
+def _build_sales_pdf(month: str, rows: List[dict], summary: dict) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF(orientation="L", format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=12)
+
+    pdf.set_fill_color(199, 0, 23)
+    pdf.rect(0, 0, 297, 24, "F")
+    pdf.set_xy(10, 6)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 8, "Altos World Online Store", ln=1)
+    pdf.set_x(10)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, f"Monthly Sales Report - {_month_label(month)}", ln=1)
+
+    pdf.ln(12)
+    pdf.set_text_color(30, 30, 30)
+
+    # Summary
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_x(10)
+    pdf.cell(0, 7, "Summary", ln=1)
+    pdf.set_font("Helvetica", "", 10)
+    summ = [
+        ("Total Orders", str(summary["total_orders"])),
+        ("Total Revenue", f"INR {summary['total_revenue']:.2f}"),
+        ("Total Items Sold", str(summary["total_items"])),
+        ("Total BV", f"{summary['total_bv']:g}"),
+        ("Total Discount Given", f"INR {summary['total_discount']:.2f}"),
+    ]
+    for label, val in summ:
+        pdf.set_x(10)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(55, 6, label, border=0)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, f": {val}", ln=1)
+
+    pdf.ln(4)
+
+    # Table header
+    headers = ["Date", "Order #", "Customer", "Phone", "Items", "Amount (INR)", "Status"]
+    widths = [26, 26, 70, 34, 18, 40, 30]
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_x(10)
+    for h, wd in zip(headers, widths):
+        pdf.cell(wd, 8, h, border=1, fill=True)
+    pdf.ln(8)
+
+    pdf.set_font("Helvetica", "", 9)
+    for o in rows:
+        cust = (o.get("customer", {}).get("name", "") or "")[:32]
+        cells = [
+            _order_date(o),
+            str(o.get("id", ""))[:8].upper(),
+            cust,
+            o.get("customer", {}).get("phone", ""),
+            str(_items_count(o)),
+            f"{float(o.get('amount') or 0):.2f}",
+            o.get("status", ""),
+        ]
+        pdf.set_x(10)
+        for c, wd in zip(cells, widths):
+            pdf.cell(wd, 7, str(c), border=1)
+        pdf.ln(7)
+
+    if not rows:
+        pdf.set_x(10)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.cell(0, 8, "No paid orders in this month.", ln=1)
+
+    out = pdf.output()
+    return bytes(out)
+
+
+@api_router.get("/reports/sales")
+async def download_sales_report(month: str, format: str = "pdf"):
+    if not (len(month) == 7 and month[4] == "-"):
+        raise HTTPException(400, "month must be in YYYY-MM format")
+    rows = await _paid_orders_for_month(month)
+    summary = _summarise(rows)
+    fmt = format.lower()
+    if fmt == "csv":
+        data = _build_sales_csv(month, rows, summary)
+        return Response(
+            content=data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="sales-report-{month}.csv"'},
+        )
+    data = await run_in_threadpool(_build_sales_pdf, month, rows, summary)
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="sales-report-{month}.pdf"'},
+    )
 
 
 # ---------------- Checkout routes ----------------

@@ -275,6 +275,12 @@ export const api = {
   async deleteRegistration(id: string) {
     return handle(await fetch(`${API}/registrations/${id}`, { method: "DELETE" }));
   },
+  async reportMonths(): Promise<{ month: string; label: string; orders: number }[]> {
+    return handle(await fetch(`${API}/reports/sales/available-months`));
+  },
+  salesReportUrl(month: string, format: "pdf" | "csv"): string {
+    return `${API}/reports/sales?month=${month}&format=${format}`;
+  },
   webviewUrl(orderId: string): string {
     return `${API}/checkout/webview/${orderId}`;
   },
