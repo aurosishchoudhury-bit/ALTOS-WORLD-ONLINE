@@ -11,6 +11,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Altos ID WebView login with auto-logout session (AltosAuthContext)
 - BV (Business Volume) totals + gated WhatsApp Instant BV button
 - Weight-based shipping calculation, max-qty constraints for heavy items
+- Minimum purchase (June 2026): cart subtotal must be ≥ ₹399 for non-Altos customers and ≥ ₹599 for Altos ID holders. Enforced in backend /checkout/create-order and shown in cart (notice + disabled checkout button with "Add ₹X more"). Constants in backend server.py (_min_purchase) and frontend pricing.ts (minPurchaseFor).
 - Multi-image products (up to 4) via Emergent Object Storage + full-screen image viewer
 - Home banners (auto-scroll carousel, admin gallery uploads)
 - Admin dashboard: products CRUD, orders, low-stock alerts, banners, certificates, diseases

@@ -11,7 +11,7 @@ import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { resolveImageUri } from "@/src/api/client";
-import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight } from "@/src/utils/pricing";
+import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight, minPurchaseFor } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function CartScreen() {
@@ -20,6 +20,10 @@ export default function CartScreen() {
   const { lines, subtotal, shipping, total, totalWeightGrams, totalBV, setQuantity, removeItem, count } =
     useCart();
   const { verified } = useAltosAuth();
+
+  const minPurchase = minPurchaseFor(verified);
+  const belowMin = subtotal < minPurchase;
+  const shortfall = Math.max(0, minPurchase - subtotal);
 
   if (lines.length === 0) {
     return (
@@ -141,9 +145,19 @@ export default function CartScreen() {
             {formatINR(total)}
           </AppText>
         </View>
+        {belowMin && (
+          <View style={styles.minNotice} testID="min-purchase-notice">
+            <Feather name="alert-circle" size={15} color={colors.warning} />
+            <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.minNoticeText}>
+              Minimum order is {formatINR(minPurchase)}
+              {verified ? " for Altos ID holders" : ""}. Add {formatINR(shortfall)} more to checkout.
+            </AppText>
+          </View>
+        )}
         <Button
           testID="checkout-button"
-          label="Proceed to Checkout"
+          label={belowMin ? `Add ${formatINR(shortfall)} more` : "Proceed to Checkout"}
+          disabled={belowMin}
           onPress={() => router.push("/checkout")}
         />
       </View>
@@ -224,4 +238,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   totalLabel: { fontSize: 24 },
+  minNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  minNoticeText: { flex: 1, fontSize: 12, lineHeight: 17 },
 });

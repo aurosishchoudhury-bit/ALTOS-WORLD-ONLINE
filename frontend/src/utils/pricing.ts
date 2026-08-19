@@ -27,6 +27,13 @@ export function getPriceInfo(product: Product, altosVerified: boolean): PriceInf
 export const discountPercent = (info: PriceInfo): number =>
   info.compareAt ? Math.round(((info.compareAt - info.unit) / info.compareAt) * 100) : 0;
 
+// ---- Minimum purchase (cart subtotal) ----
+export const MIN_PURCHASE_ALTOS = 599; // verified Altos ID holders
+export const MIN_PURCHASE_REGULAR = 399; // non-Altos customers
+
+export const minPurchaseFor = (altosVerified: boolean): number =>
+  altosVerified ? MIN_PURCHASE_ALTOS : MIN_PURCHASE_REGULAR;
+
 // ---- Weight-based shipping & limits ----
 export const HEAVY_ITEM_THRESHOLD_G = 500; // items >= 500g are limited per order
 export const HEAVY_ITEM_MAX_QTY = 2;

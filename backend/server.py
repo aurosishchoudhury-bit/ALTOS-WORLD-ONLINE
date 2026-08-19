@@ -792,6 +792,14 @@ def _unit_price(product: dict, altos_verified: bool) -> float:
 HEAVY_ITEM_THRESHOLD_G = 500  # items weighing >= 500g are limited per order
 HEAVY_ITEM_MAX_QTY = 2
 
+# Minimum cart subtotal required to place an order.
+MIN_PURCHASE_ALTOS = 599.0  # verified Altos ID holders
+MIN_PURCHASE_REGULAR = 399.0  # non-Altos customers
+
+
+def _min_purchase(altos_verified: bool) -> float:
+    return MIN_PURCHASE_ALTOS if altos_verified else MIN_PURCHASE_REGULAR
+
 
 def _shipping_charge(total_weight_g: float) -> float:
     if total_weight_g > 5000:
@@ -988,6 +996,13 @@ async def create_order(payload: CreateOrderRequest):
     subtotal, shipping, total_weight, total_bv, total, snapshot = await _price_cart(
         payload.items, payload.altos_verified
     )
+    min_purchase = _min_purchase(payload.altos_verified)
+    if subtotal < min_purchase:
+        who = "Altos ID holders" if payload.altos_verified else "orders"
+        raise HTTPException(
+            400,
+            f"Minimum purchase for {who} is ₹{min_purchase:g}. Please add ₹{min_purchase - subtotal:.2f} more.",
+        )
     coupon = None
     discount = 0.0
     if payload.coupon_code.strip():
