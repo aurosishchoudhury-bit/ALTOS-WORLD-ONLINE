@@ -26,6 +26,14 @@ export function openBulkOrderChat() {
   );
 }
 
+/** Opens a WhatsApp chat with the store admin for a franchise centre enquiry. */
+export function openFranchiseChat() {
+  openWhatsApp(
+    "Hi Altos World! I am interested in becoming a *Franchise Centre*. Please share the details, requirements and process.",
+    STORE_WHATSAPP,
+  );
+}
+
 const GUARDIAN_LABEL: Record<string, string> = {
   S: "Son of",
   D: "Daughter of",

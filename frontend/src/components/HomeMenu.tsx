@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import AppText from "./AppText";
-import { openBulkOrderChat } from "@/src/utils/whatsapp";
+import { openBulkOrderChat, openFranchiseChat } from "@/src/utils/whatsapp";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 type Props = {
@@ -126,6 +126,15 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
               onPress={() => {
                 onClose();
                 openBulkOrderChat();
+              }}
+            />
+            <Item
+              testID="menu-franchise"
+              icon="briefcase"
+              label="Want to become a Franchise Centre? Click Here"
+              onPress={() => {
+                onClose();
+                openFranchiseChat();
               }}
             />
           </ScrollView>
