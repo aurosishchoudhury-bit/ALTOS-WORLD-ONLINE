@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, FlatList, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, FlatList, Pressable, StyleSheet, ActivityIndicator, TextInput } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 
@@ -12,6 +12,11 @@ export default function DiseasesScreen() {
   const router = useRouter();
   const [diseases, setDiseases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const visible = diseases.filter((d) =>
+    d.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -28,15 +33,26 @@ export default function DiseasesScreen() {
       <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.intro}>
         Pick a health concern to see the products recommended for it.
       </AppText>
+      <View style={styles.searchWrap}>
+        <Feather name="search" size={16} color={colors.muted} />
+        <TextInput
+          testID="disease-search"
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search disease / concern..."
+          placeholderTextColor={colors.muted}
+          style={styles.searchInput}
+        />
+      </View>
       {loading ? (
         <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.xl }} />
-      ) : diseases.length === 0 ? (
+      ) : visible.length === 0 ? (
         <AppText variant="body" color={colors.muted} style={styles.empty}>
-          No health concerns added yet — check back soon.
+          {search ? "No matching disease found." : "No health concerns added yet — check back soon."}
         </AppText>
       ) : (
         <FlatList
-          data={diseases}
+          data={visible}
           keyExtractor={(d) => d.id}
           scrollEnabled={false}
           renderItem={({ item }) => (
@@ -67,6 +83,19 @@ export default function DiseasesScreen() {
 
 const styles = StyleSheet.create({
   intro: { fontSize: 14, lineHeight: 21, marginBottom: spacing.lg },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    height: 46,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: colors.onSurface },
   empty: { fontSize: 13, marginTop: spacing.lg },
   card: {
     flexDirection: "row",

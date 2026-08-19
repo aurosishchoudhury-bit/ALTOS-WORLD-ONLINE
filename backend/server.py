@@ -148,6 +148,7 @@ class Review(ReviewIn):
 class DiseaseIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     product_ids: List[str] = Field(default_factory=list)
+    dosages: dict = Field(default_factory=dict)  # product_id -> dosage text
 
 
 class Disease(DiseaseIn):
@@ -358,6 +359,14 @@ async def delete_disease(disease_id: str):
     if res.deleted_count == 0:
         raise HTTPException(404, "Disease not found")
     return {"deleted": True}
+
+
+@api_router.get("/diseases/{disease_id}")
+async def get_disease(disease_id: str):
+    doc = await db.diseases.find_one({"id": disease_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Disease not found")
+    return doc
 
 
 @api_router.get("/diseases/{disease_id}/products", response_model=List[Product])

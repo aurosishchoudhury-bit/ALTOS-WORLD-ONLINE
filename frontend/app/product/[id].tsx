@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   useWindowDimensions,
+  Modal,
 } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -37,6 +38,7 @@ export default function ProductDetail() {
   const [error, setError] = useState(false);
   const [qty, setQty] = useState(1);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const { width: winWidth } = useWindowDimensions();
 
   const [reviews, setReviews] = useState<any[]>([]);
@@ -141,11 +143,13 @@ export default function ProductDetail() {
               product.images && product.images.length > 0 ? product.images : [product.image];
             if (gallery.length === 1) {
               return (
-                <Image
-                  source={{ uri: resolveImageUri(gallery[0]) }}
-                  style={styles.image}
-                  contentFit="cover"
-                />
+                <Pressable testID="open-image-viewer" onPress={() => setViewerOpen(true)} style={styles.image}>
+                  <Image
+                    source={{ uri: resolveImageUri(gallery[0]) }}
+                    style={styles.image}
+                    contentFit="cover"
+                  />
+                </Pressable>
               );
             }
             return (
@@ -160,12 +164,17 @@ export default function ProductDetail() {
                   testID="product-gallery"
                 >
                   {gallery.map((img, i) => (
-                    <Image
+                    <Pressable
                       key={img + i}
-                      source={{ uri: resolveImageUri(img) }}
-                      style={[styles.image, { width: winWidth }]}
-                      contentFit="cover"
-                    />
+                      testID={i === 0 ? "open-image-viewer" : undefined}
+                      onPress={() => setViewerOpen(true)}
+                    >
+                      <Image
+                        source={{ uri: resolveImageUri(img) }}
+                        style={[styles.image, { width: winWidth }]}
+                        contentFit="cover"
+                      />
+                    </Pressable>
                   ))}
                 </ScrollView>
                 <View style={styles.galleryDots}>
@@ -346,6 +355,45 @@ export default function ProductDetail() {
           disabled={outOfStock}
         />
       </View>
+
+      <Modal
+        visible={viewerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerOpen(false)}
+      >
+        <View style={styles.viewerOverlay}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            contentOffset={{ x: galleryIndex * winWidth, y: 0 }}
+          >
+            {(product.images && product.images.length > 0 ? product.images : [product.image]).map(
+              (img, i) => (
+                <Pressable
+                  key={`v${i}`}
+                  style={[styles.viewerPage, { width: winWidth }]}
+                  onPress={() => setViewerOpen(false)}
+                >
+                  <Image
+                    source={{ uri: resolveImageUri(img) }}
+                    style={styles.viewerImage}
+                    contentFit="contain"
+                  />
+                </Pressable>
+              ),
+            )}
+          </ScrollView>
+          <Pressable
+            testID="close-image-viewer"
+            onPress={() => setViewerOpen(false)}
+            style={[styles.viewerClose, { top: insets.top + spacing.md }]}
+          >
+            <Feather name="x" size={22} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -363,6 +411,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
   },
   image: { width: "100%", height: "100%" },
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(10,12,10,0.96)",
+  },
+  viewerPage: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerImage: {
+    width: "100%",
+    height: "80%",
+  },
+  viewerClose: {
+    position: "absolute",
+    right: spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   galleryDots: {
     position: "absolute",
     bottom: 14,

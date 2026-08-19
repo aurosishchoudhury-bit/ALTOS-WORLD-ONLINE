@@ -156,7 +156,10 @@ export const api = {
   async listDiseases(): Promise<any[]> {
     return handle(await fetch(`${API}/diseases`));
   },
-  async createDisease(data: { name: string; product_ids: string[] }) {
+  async getDisease(id: string): Promise<any> {
+    return handle(await fetch(`${API}/diseases/${id}`));
+  },
+  async createDisease(data: { name: string; product_ids: string[]; dosages?: Record<string, string> }) {
     return handle(
       await fetch(`${API}/diseases`, {
         method: "POST",
@@ -165,7 +168,7 @@ export const api = {
       }),
     );
   },
-  async updateDisease(id: string, data: { name: string; product_ids: string[] }) {
+  async updateDisease(id: string, data: { name: string; product_ids: string[]; dosages?: Record<string, string> }) {
     return handle(
       await fetch(`${API}/diseases/${id}`, {
         method: "PUT",

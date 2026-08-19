@@ -19,13 +19,16 @@ export default function DiseaseProducts() {
   const toast = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [dosages, setDosages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    api
-      .getDiseaseProducts(id)
-      .then(setProducts)
+    Promise.all([api.getDiseaseProducts(id), api.getDisease(id).catch(() => null)])
+      .then(([prods, disease]) => {
+        setProducts(prods);
+        setDosages(disease?.dosages || {});
+      })
       .catch(() => toast.show("Could not load products"))
       .finally(() => setLoading(false));
   }, [id, toast]);
@@ -61,6 +64,31 @@ export default function DiseaseProducts() {
           columnWrapperStyle={styles.columnWrap}
           contentContainerStyle={{ paddingBottom: spacing.xxl, paddingTop: spacing.lg }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.dosageTable} testID="dosage-table">
+              <AppText variant="semibold" style={styles.dosageTitle}>
+                Recommended Dosage
+              </AppText>
+              <View style={styles.tableHeader}>
+                <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
+                  Product
+                </AppText>
+                <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
+                  Dosage
+                </AppText>
+              </View>
+              {products.map((p) => (
+                <View key={`row-${p.id}`} style={styles.tableRow}>
+                  <AppText variant="body" style={styles.cell} numberOfLines={2}>
+                    {p.name}
+                  </AppText>
+                  <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.cell}>
+                    {dosages[p.id] || "As directed"}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          }
           renderItem={({ item }) => (
             <ProductCard
               product={item}
@@ -97,4 +125,35 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.md,
   },
+  dosageTable: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  dosageTitle: {
+    fontSize: 15,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceSecondary,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  cell: {
+    flex: 1,
+    fontSize: 13,
+    padding: spacing.md,
+  },
+  cellHead: { fontSize: 12 },
 });

@@ -137,6 +137,18 @@ export default function Storefront() {
 
       <BannerCarousel banners={banners} />
 
+      <Pressable
+        testID="home-shop-by-disease"
+        onPress={() => router.push("/diseases")}
+        style={styles.diseaseBtn}
+      >
+        <Feather name="heart" size={17} color={colors.brand} />
+        <AppText variant="semibold" style={styles.diseaseBtnText}>
+          Shop by Disease
+        </AppText>
+        <Feather name="chevron-right" size={17} color={colors.muted} />
+      </Pressable>
+
       <View style={styles.loginWrap}>
         {verified ? (
           <View style={[styles.loginBox, styles.loginBoxVerified]} testID="altos-verified-box">
@@ -468,6 +480,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
   },
+  diseaseBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    height: 50,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  diseaseBtnText: { fontSize: 14, flex: 1 },
   loginBox: {
     flexDirection: "row",
     alignItems: "center",

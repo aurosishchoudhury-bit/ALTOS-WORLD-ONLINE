@@ -22,6 +22,7 @@ export default function ManageDiseases() {
   const [editing, setEditing] = useState<any>(null);
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [dosages, setDosages] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -35,6 +36,7 @@ export default function ManageDiseases() {
     setEditing(disease || null);
     setName(disease?.name || "");
     setSelected(disease?.product_ids || []);
+    setDosages(disease?.dosages || {});
     setModal(true);
   };
 
@@ -45,10 +47,11 @@ export default function ManageDiseases() {
     if (!name.trim()) return toast.show("Enter a disease / concern name");
     setSaving(true);
     try {
+      const payload = { name: name.trim(), product_ids: selected, dosages };
       if (editing) {
-        await api.updateDisease(editing.id, { name: name.trim(), product_ids: selected });
+        await api.updateDisease(editing.id, payload);
       } else {
-        await api.createDisease({ name: name.trim(), product_ids: selected });
+        await api.createDisease(payload);
       }
       toast.show(editing ? "Updated" : "Added");
       setModal(false);
@@ -151,6 +154,31 @@ export default function ManageDiseases() {
                 );
               })}
             </ScrollView>
+            {selected.length > 0 && (
+              <>
+                <AppText variant="semibold" style={styles.pickLabel}>
+                  Dosage per product
+                </AppText>
+                <ScrollView style={styles.dosageList} showsVerticalScrollIndicator={false}>
+                  {products
+                    .filter((p) => selected.includes(p.id))
+                    .map((p) => (
+                      <View key={`d-${p.id}`} style={styles.dosageRow}>
+                        <AppText variant="body" style={styles.dosageName} numberOfLines={1}>
+                          {p.name}
+                        </AppText>
+                        <FormField
+                          testID={`dosage-${p.id}`}
+                          label=""
+                          value={dosages[p.id] || ""}
+                          onChangeText={(t) => setDosages((prev) => ({ ...prev, [p.id]: t }))}
+                          placeholder="e.g. 2 capsules twice a day"
+                        />
+                      </View>
+                    ))}
+                </ScrollView>
+              </>
+            )}
             <View style={styles.modalActions}>
               <Button label="Cancel" variant="secondary" onPress={() => setModal(false)} style={{ flex: 1 }} />
               <Button testID="save-disease" label="Save" onPress={save} loading={saving} style={{ flex: 1 }} />
@@ -207,7 +235,10 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 20, marginBottom: spacing.lg },
   pickLabel: { fontSize: 13, marginBottom: spacing.sm },
-  pickList: { maxHeight: 240, marginBottom: spacing.lg },
+  pickList: { maxHeight: 160, marginBottom: spacing.md },
+  dosageList: { maxHeight: 190, marginBottom: spacing.lg },
+  dosageRow: { marginBottom: spacing.xs },
+  dosageName: { fontSize: 13, marginBottom: 2 },
   pickRow: {
     flexDirection: "row",
     alignItems: "center",
