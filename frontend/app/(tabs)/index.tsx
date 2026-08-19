@@ -192,6 +192,18 @@ export default function Storefront() {
             </Pressable>
           </View>
         )}
+        {!verified && (
+          <Pressable
+            testID="register-link"
+            onPress={() => router.push("/register")}
+            style={styles.registerLink}
+          >
+            <Feather name="user-plus" size={15} color={colors.brand} />
+            <AppText variant="semibold" color={colors.brand} style={styles.registerLinkText}>
+              New here? Register as a Direct Seller
+            </AppText>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.searchWrap}>
@@ -410,6 +422,15 @@ const styles = StyleSheet.create({
   },
   bulkBtnTitle: { fontSize: 15, color: "#FFFFFF" },
   bulkBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 1 },
+  registerLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  registerLinkText: { fontSize: 13 },
   center: {
     paddingVertical: spacing["3xl"],
     alignItems: "center",

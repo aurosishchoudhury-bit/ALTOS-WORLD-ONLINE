@@ -310,6 +310,17 @@ export default function Admin() {
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               </Pressable>
               <Pressable
+                testID="manage-registrations"
+                onPress={() => router.push("/admin/registrations")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="user-plus" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  Registrations — Direct Seller applications
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+              <Pressable
                 testID="manage-coupons"
                 onPress={() => router.push("/admin/coupons")}
                 style={styles.manageDiseases}

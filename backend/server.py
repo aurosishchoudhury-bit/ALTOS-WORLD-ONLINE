@@ -469,6 +469,126 @@ async def serve_file(path: str):
     )
 
 
+# ---------------- Direct Seller Registration ----------------
+class RegistrationIn(BaseModel):
+    title: str = Field(default="Mr", max_length=10)  # Mr | Mrs | Ms | Dr
+    name: str = Field(min_length=1, max_length=120)
+    mobile: str = Field(min_length=6, max_length=20)
+    email: str = Field(min_length=3, max_length=254)
+    guardian_type: str = Field(default="S", max_length=2)  # S | D | W (Son/Daughter/Wife of)
+    guardian_name: str = Field(min_length=1, max_length=120)  # S/D/W of ...
+    dob: str = Field(min_length=1, max_length=20)  # YYYY-MM-DD
+    address: str = Field(min_length=5, max_length=600)
+    nominee_name: str = Field(min_length=1, max_length=120)
+    nominee_relation: str = Field(min_length=1, max_length=60)
+
+
+class Registration(RegistrationIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pdf_url: str = ""
+    created_at: str = Field(default_factory=now_iso)
+
+
+_GUARDIAN_LABEL = {"S": "Son of", "D": "Daughter of", "W": "Wife of"}
+
+
+def _build_registration_pdf(reg: dict) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF(format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Header
+    pdf.set_fill_color(199, 0, 23)
+    pdf.rect(0, 0, 210, 26, "F")
+    pdf.set_xy(10, 7)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 10, "Altos World Online Store", ln=1)
+    pdf.set_x(10)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, "Direct Seller Registration Form", ln=1)
+
+    pdf.ln(14)
+    pdf.set_text_color(30, 30, 30)
+
+    guardian = _GUARDIAN_LABEL.get(reg.get("guardian_type", "S"), "S/D/W of")
+    rows = [
+        ("Title", reg.get("title", "")),
+        ("Full Name", reg.get("name", "")),
+        ("Mobile Number", reg.get("mobile", "")),
+        ("Email ID", reg.get("email", "")),
+        (guardian, reg.get("guardian_name", "")),
+        ("Date of Birth", reg.get("dob", "")),
+        ("Address", reg.get("address", "")),
+        ("Nominee Name", reg.get("nominee_name", "")),
+        ("Relation with Nominee", reg.get("nominee_relation", "")),
+    ]
+
+    label_w = 55
+    val_w = 125
+    for label, value in rows:
+        pdf.set_x(10)
+        y_start = pdf.get_y()
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.multi_cell(label_w, 7, f"{label}", border=0)
+        y_after_label = pdf.get_y()
+        pdf.set_xy(10 + label_w, y_start)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(val_w, 7, f": {value}", border=0)
+        y_after_val = pdf.get_y()
+        pdf.set_y(max(y_after_label, y_after_val))
+        pdf.set_draw_color(220, 220, 220)
+        pdf.line(10, pdf.get_y() + 1, 195, pdf.get_y() + 1)
+        pdf.ln(3)
+
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.set_text_color(120, 120, 120)
+    pdf.set_x(10)
+    pdf.multi_cell(185, 5, f"Submitted on {reg.get('created_at', '')}", border=0)
+    pdf.set_x(10)
+    pdf.multi_cell(
+        185, 5,
+        "Note: Altos ID and password will be shared with the applicant within 15 minutes "
+        "via WhatsApp and text message.",
+        border=0,
+    )
+
+    out = pdf.output()
+    return bytes(out)
+
+
+@api_router.get("/registrations")
+async def list_registrations():
+    return await db.registrations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.post("/registrations")
+async def create_registration(payload: RegistrationIn):
+    reg = Registration(**payload.dict())
+    doc = reg.dict()
+    try:
+        pdf_bytes = await run_in_threadpool(_build_registration_pdf, doc)
+        path = f"{APP_NAME}/registrations/{reg.id}.pdf"
+        result = await run_in_threadpool(_put_object, path, pdf_bytes, "application/pdf")
+        doc["pdf_url"] = f"/api/files/{result['path']}"
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Registration PDF generation/upload failed: %s", e)
+        doc["pdf_url"] = ""
+    await db.registrations.insert_one(doc)
+    return {"id": reg.id, "pdf_url": doc["pdf_url"], "created_at": doc["created_at"]}
+
+
+@api_router.delete("/registrations/{reg_id}")
+async def delete_registration(reg_id: str):
+    res = await db.registrations.delete_one({"id": reg_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Registration not found")
+    return {"ok": True}
+
+
 # ---------------- Checkout routes ----------------
 def _unit_price(product: dict, altos_verified: bool) -> float:
     """DP price for verified Altos ID holders; offer price or MRP for everyone else."""

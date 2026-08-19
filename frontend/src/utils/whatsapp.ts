@@ -26,6 +26,40 @@ export function openBulkOrderChat() {
   );
 }
 
+const GUARDIAN_LABEL: Record<string, string> = {
+  S: "Son of",
+  D: "Daughter of",
+  W: "Wife of",
+};
+
+/** Formats a new Direct Seller registration as a WhatsApp message for the admin. */
+export function registrationMessage(reg: {
+  title: string;
+  name: string;
+  mobile: string;
+  email: string;
+  guardian_type: string;
+  guardian_name: string;
+  dob: string;
+  address: string;
+  nominee_name: string;
+  nominee_relation: string;
+}): string {
+  const guardian = GUARDIAN_LABEL[reg.guardian_type] || "S/D/W of";
+  return (
+    `*Altos World — New Direct Seller Registration*\n\n` +
+    `Title: ${reg.title}\n` +
+    `Name: ${reg.name}\n` +
+    `Mobile: ${reg.mobile}\n` +
+    `Email: ${reg.email}\n` +
+    `${guardian}: ${reg.guardian_name}\n` +
+    `DOB: ${reg.dob}\n` +
+    `Address: ${reg.address}\n` +
+    `Nominee: ${reg.nominee_name} (${reg.nominee_relation})\n\n` +
+    `Please generate the Altos ID & password and share with the applicant within 15 minutes.`
+  );
+}
+
 export const orderCode = (id: string) => `#${String(id).slice(0, 8).toUpperCase()}`;
 
 const itemLines = (order: any): string =>

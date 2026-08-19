@@ -114,6 +114,12 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
             />
             <Item testID="menu-contact" icon="phone" label="Contact Us" onPress={() => go("/contact")} />
             <Item
+              testID="menu-register"
+              icon="user-plus"
+              label="Register as Direct Seller"
+              onPress={() => go("/register")}
+            />
+            <Item
               testID="menu-bulk-orders"
               icon="package"
               label="For Bulk Orders — Click Here"

@@ -260,6 +260,21 @@ export const api = {
       }),
     );
   },
+  async createRegistration(data: any) {
+    return handle(
+      await fetch(`${API}/registrations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async listRegistrations(): Promise<any[]> {
+    return handle(await fetch(`${API}/registrations`));
+  },
+  async deleteRegistration(id: string) {
+    return handle(await fetch(`${API}/registrations/${id}`, { method: "DELETE" }));
+  },
   webviewUrl(orderId: string): string {
     return `${API}/checkout/webview/${orderId}`;
   },
