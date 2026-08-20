@@ -1385,6 +1385,18 @@ async def checkout_webview(order_id: str):
     order_id: "{order['razorpay_order_id']}",
     prefill: {{ name: "{cust['name']}", email: "{cust['email']}", contact: "{cust['phone']}" }},
     theme: {{ color: "#657962" }},
+    config: {{
+      display: {{
+        blocks: {{
+          upi: {{
+            name: "Pay via UPI",
+            instruments: [ {{ method: "upi", flows: ["collect", "intent", "qr"] }} ]
+          }}
+        }},
+        sequence: ["block.upi"],
+        preferences: {{ show_default_blocks: true }}
+      }}
+    }},
     handler: function (response) {{
       window.location.href = "https://botanica.callback/success?payment_id=" + response.razorpay_payment_id + "&order_id=" + response.razorpay_order_id + "&signature=" + response.razorpay_signature;
     }},

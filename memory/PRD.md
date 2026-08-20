@@ -37,11 +37,12 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - banners/certificates: {id, image_url}
 
 ## Pending / Upcoming
-1. **Razorpay LIVE keys (P0)** — TEST keys connected (June 2026): rzp_test_TS4UDRJIbLGJab in backend/.env, DEMO_MODE=false, real Razorpay checkout sheet loads in webview (cards/EMI/netbanking/wallet/UPI). Swap to rzp_live_ keys in backend/.env when user's KYC is done to accept real money.
+1. **Razorpay LIVE keys (P0)** — TEST keys connected (June 2026): rzp_test_TS4UDRJIbLGJab in backend/.env, DEMO_MODE=false, real Razorpay checkout sheet loads in webview (cards/EMI/netbanking/wallet/UPI). UPI pinned as first block via checkout config.display.blocks (QR + intent + collect flows) — verified visible with mobile UA. Swap to rzp_live_ keys in backend/.env when user's KYC is done to accept real money.
 2. **Total Savings in cart (P1)** — show savings vs MRP at cart/checkout.
 3. **Shiprocket verification (P2)** — account LINKED (altosworldonline@gmail.com, creds in db.integrations doc _id="shiprocket"). Shiprocket WAF blocks this dev environment IP (403 HTML on all endpoints) so verified=false; token/verification + "Sync shipping status" auto-activate from production after deploy. Connect endpoint stores creds on WAF block (verified=false) and errors return 400 (not 502 — Cloudflare replaces 502 bodies).
 
 ## Notes
+- Vibrant palette (June 2026): theme.ts colors brightened — brand #3E8E4C (vibrant herbal green), success #2E9E5B, warning #E8963E, error #D9534F, greener surface tints (#F1F7EC etc.). All components consume theme constants so change is global.
 - No auth anywhere by design; admin tab openly accessible.
 - Backend: /app/backend/server.py (single file). Frontend routes in /app/frontend/app.
 - Test creds file: /app/memory/test_credentials.md (no creds needed — guest app).
