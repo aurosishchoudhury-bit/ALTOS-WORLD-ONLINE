@@ -10,6 +10,7 @@ type Banner = { id: string; image: string };
 export default function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { width } = useWindowDimensions();
   const bannerWidth = width - spacing.lg * 2;
+  const bannerHeight = Math.round((bannerWidth * 9) / 16); // 16:9 aspect ratio
   const listRef = useRef<FlatList>(null);
   const indexRef = useRef(0);
   const [active, setActive] = useState(0);
@@ -47,7 +48,7 @@ export default function BannerCarousel({ banners }: { banners: Banner[] }) {
         renderItem={({ item }) => (
           <Image
             source={{ uri: resolveImageUri(item.image) }}
-            style={[styles.banner, { width: bannerWidth }]}
+            style={[styles.banner, { width: bannerWidth, height: bannerHeight }]}
             contentFit="cover"
             transition={200}
           />
@@ -72,7 +73,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   banner: {
-    height: 150,
     backgroundColor: colors.surfaceSecondary,
   },
   dots: {

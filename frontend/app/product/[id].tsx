@@ -242,6 +242,31 @@ export default function ProductDetail() {
 
           <View style={styles.divider} />
 
+          <View style={styles.infoCard} testID="shipping-info">
+            <View style={styles.infoRow}>
+              <Feather name="truck" size={16} color={colors.brand} />
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.infoText}>
+                Usually dispatched within 2 days and delivered within 7–10 days.
+              </AppText>
+            </View>
+            <View style={styles.infoRow}>
+              <Feather name="package" size={16} color={colors.brand} />
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.infoText}>
+                Shipping: Free up to 3 kg · ₹50 for 3–5 kg · ₹100 above 5 kg.
+              </AppText>
+            </View>
+            {!verified && (
+              <View style={styles.infoRow}>
+                <Feather name="credit-card" size={16} color={colors.brand} />
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.infoText}>
+                  Partial COD available — pay 30% now, rest on delivery (non-Altos ID users).
+                </AppText>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.divider} />
+
           <View style={styles.reviewsHeader} testID="reviews-section">
             <AppText variant="displaySemiBold" style={styles.reviewsTitle}>
               Ratings & Reviews
@@ -505,6 +530,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: spacing.sm,
   },
+  infoCard: {
+    gap: spacing.sm,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  infoText: { flex: 1, fontSize: 13, lineHeight: 19 },
   reviewsHeader: {
     marginTop: spacing.md,
   },

@@ -11,7 +11,6 @@ import {
   TextInput,
 } from "react-native";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, FontAwesome } from "@expo/vector-icons";
@@ -31,7 +30,6 @@ import { openBulkOrderChat } from "@/src/utils/whatsapp";
 import { colors, spacing, radius, fonts, formatINR } from "@/src/theme/theme";
 
 const { width } = Dimensions.get("window");
-const HERO = "https://images.unsplash.com/photo-1526235591527-15084c256bad";
 const LOGO = require("../../assets/images/altos-logo.jpg");
 
 export default function Storefront() {
@@ -116,24 +114,6 @@ export default function Storefront() {
         </Pressable>
         <Image source={LOGO} style={styles.logo} contentFit="contain" />
         <View style={styles.menuBtn} />
-      </View>
-      <View style={styles.hero}>
-        <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        <LinearGradient
-          colors={["rgba(42,47,42,0.15)", "rgba(42,47,42,0.75)"]}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.heroContent}>
-          <AppText variant="body" color={colors.onSurfaceInverse} style={styles.heroKicker}>
-            WELLNESS · HERBAL · SKINCARE
-          </AppText>
-          <AppText variant="display" color={colors.onSurfaceInverse} style={styles.heroTitle}>
-            Rooted in Nature
-          </AppText>
-          <AppText variant="body" color={colors.onSurfaceInverse} style={styles.heroSub}>
-            Pure, plant-powered wellness delivered to your door.
-          </AppText>
-        </View>
       </View>
 
       <BannerCarousel banners={banners} />
