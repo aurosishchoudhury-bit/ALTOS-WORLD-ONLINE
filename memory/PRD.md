@@ -18,6 +18,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Admin dashboard: products CRUD, orders, low-stock alerts, banners, certificates, diseases
 - Shop by Disease: home button, list with search bar, disease detail with "Recommended Dosage" table (product name + dosage), admin dosage input per mapped product — VERIFIED WORKING (June 2026)
 - Product info card (June 2026): every product page shows dispatch/delivery timeline ("dispatched within 2 days, delivered within 7–10 days"), shipping charges (free ≤3kg, ₹50 3–5kg, ₹100 >5kg), and "Partial COD available" line (shown only to non-Altos users).
+- Product dosage box (June 2026): products have a `dosage` text field (admin product form input "Dosage (shown on product page)"). When set, a "Dosage" box appears under the product description on the product page.
 - Customer ratings & reviews, packing/weight info display
 - About Us + downloadable certificates gallery, WhatsApp support FAB
 - Bulk Orders via WhatsApp (June 2026): "For Bulk Orders — Click Here" green button at bottom of home page + menu item in hamburger drawer; both open WhatsApp chat with admin (917735454828) with pre-filled bulk order message.
@@ -36,9 +37,9 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - banners/certificates: {id, image_url}
 
 ## Pending / Upcoming
-1. **Razorpay real keys (P0)** — checkout currently in DEMO_MODE (mocked). User will provide Key ID & Secret later; backend auto-switches when keys added to backend/.env.
+1. **Razorpay LIVE keys (P0)** — TEST keys connected (June 2026): rzp_test_TS4UDRJIbLGJab in backend/.env, DEMO_MODE=false, real Razorpay checkout sheet loads in webview (cards/EMI/netbanking/wallet/UPI). Swap to rzp_live_ keys in backend/.env when user's KYC is done to accept real money.
 2. **Total Savings in cart (P1)** — show savings vs MRP at cart/checkout.
-3. **Shiprocket API integration (P2)** — currently manual admin toggles; needs user API creds.
+3. **Shiprocket verification (P2)** — account LINKED (altosworldonline@gmail.com, creds in db.integrations doc _id="shiprocket"). Shiprocket WAF blocks this dev environment IP (403 HTML on all endpoints) so verified=false; token/verification + "Sync shipping status" auto-activate from production after deploy. Connect endpoint stores creds on WAF block (verified=false) and errors return 400 (not 502 — Cloudflare replaces 502 bodies).
 
 ## Notes
 - No auth anywhere by design; admin tab openly accessible.

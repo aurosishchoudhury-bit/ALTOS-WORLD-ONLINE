@@ -117,6 +117,7 @@ class ProductBase(BaseModel):
     bv: float = 0  # Business Volume points (visible to Altos ID holders)
     weight: str = ""  # display text, e.g. "60 capsules", "30ml", "250g"
     weight_grams: float = 0  # numeric weight used for shipping calculation
+    dosage: str = ""  # recommended dosage text shown on the product page
     images: List[str] = Field(default_factory=list, max_length=4)  # extra product photos
     category: str = "Supplements"
     image: str = ""
@@ -1201,52 +1202,84 @@ async def _shiprocket_token() -> str:
             f"{SHIPROCKET_BASE}/auth/login",
             json={"email": doc["email"], "password": doc["password"]},
         )
+    if _sr_waf_blocked(r):
+        raise HTTPException(
+            400,
+            "Shiprocket is blocking requests from this development server. Sync will work after the app is deployed.",
+        )
     if r.status_code != 200:
-        raise HTTPException(502, "Shiprocket login failed — check your API user email/password")
+        raise HTTPException(400, "Shiprocket login failed — check your API user email/password")
     token = r.json().get("token")
     if not token:
-        raise HTTPException(502, "Shiprocket returned no token")
+        raise HTTPException(400, "Shiprocket returned no token")
     await db.integrations.update_one(
         {"_id": "shiprocket"},
         {"$set": {
             "token": token,
+            "verified": True,
             "token_expires_at": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(),
         }},
     )
     return token
 
 
+def _sr_waf_blocked(resp) -> bool:
+    """Shiprocket's WAF returns a 403 HTML page when it blocks a server IP
+    (common for datacenter/dev environments). Distinguish that from bad credentials."""
+    return resp.status_code == 403 and "<html" in (resp.text or "").lower()
+
+
 @api_router.get("/shiprocket/status")
 async def shiprocket_status():
     doc = await db.integrations.find_one({"_id": "shiprocket"})
-    return {"connected": bool(doc), "email": doc.get("email") if doc else None}
+    return {
+        "connected": bool(doc),
+        "email": doc.get("email") if doc else None,
+        "verified": bool(doc.get("verified")) if doc else False,
+    }
 
 
 @api_router.post("/shiprocket/connect")
 async def shiprocket_connect(payload: ShiprocketConnectRequest):
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.post(
-            f"{SHIPROCKET_BASE}/auth/login",
-            json={"email": payload.email, "password": payload.password},
-        )
-    if r.status_code != 200:
-        raise HTTPException(400, "Shiprocket login failed. Use your API user credentials (Shiprocket Panel → Settings → API → Configure).")
-    token = r.json().get("token")
-    if not token:
-        raise HTTPException(502, "Shiprocket returned no token")
-    await db.integrations.update_one(
-        {"_id": "shiprocket"},
-        {"$set": {
-            "provider": "shiprocket",
-            "email": payload.email,
-            "password": payload.password,
-            "token": token,
-            "token_expires_at": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(),
-            "connected_at": now_iso(),
-        }},
-        upsert=True,
-    )
-    return {"connected": True, "email": payload.email}
+    verified = False
+    token = None
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(
+                f"{SHIPROCKET_BASE}/auth/login",
+                json={"email": payload.email, "password": payload.password},
+            )
+    except httpx.HTTPError:
+        r = None
+    if r is not None:
+        if r.status_code == 200:
+            token = r.json().get("token")
+            verified = bool(token)
+        elif not _sr_waf_blocked(r):
+            raise HTTPException(
+                400,
+                "Shiprocket login failed. Use your API user credentials (Shiprocket Panel → Settings → API → Configure).",
+            )
+    update = {
+        "provider": "shiprocket",
+        "email": payload.email,
+        "password": payload.password,
+        "verified": verified,
+        "connected_at": now_iso(),
+    }
+    if token:
+        update["token"] = token
+        update["token_expires_at"] = (datetime.now(timezone.utc) + timedelta(days=9)).isoformat()
+    await db.integrations.update_one({"_id": "shiprocket"}, {"$set": update}, upsert=True)
+    return {
+        "connected": True,
+        "email": payload.email,
+        "verified": verified,
+        "warning": None if verified else (
+            "Credentials saved, but Shiprocket is blocking requests from this development server. "
+            "The link will verify automatically once the app is deployed."
+        ),
+    }
 
 
 @api_router.post("/shiprocket/disconnect")
@@ -1278,9 +1311,9 @@ async def shiprocket_sync():
         )
     if r.status_code == 401:
         await db.integrations.update_one({"_id": "shiprocket"}, {"$unset": {"token": "", "token_expires_at": ""}})
-        raise HTTPException(502, "Shiprocket session expired — tap Sync again")
+        raise HTTPException(400, "Shiprocket session expired — tap Sync again")
     if r.status_code >= 400:
-        raise HTTPException(502, f"Shiprocket request failed ({r.status_code})")
+        raise HTTPException(400, f"Shiprocket request failed ({r.status_code})")
 
     sr_orders = r.json().get("data", []) or []
     by_channel_id = {}

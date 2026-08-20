@@ -242,6 +242,23 @@ export default function ProductDetail() {
 
           <View style={styles.divider} />
 
+          {!!product.dosage && (
+            <>
+              <View style={styles.dosageBox} testID="dosage-box">
+                <View style={styles.dosageHeader}>
+                  <Feather name="clock" size={15} color={colors.brand} />
+                  <AppText variant="semibold" style={styles.dosageTitle}>
+                    Dosage
+                  </AppText>
+                </View>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.dosageText}>
+                  {product.dosage}
+                </AppText>
+              </View>
+              <View style={styles.divider} />
+            </>
+          )}
+
           <View style={styles.infoCard} testID="shipping-info">
             <View style={styles.infoRow}>
               <Feather name="truck" size={16} color={colors.brand} />
@@ -539,6 +556,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 19 },
+  dosageBox: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 12,
+    padding: spacing.lg,
+  },
+  dosageHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  dosageTitle: { fontSize: 14 },
+  dosageText: { fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
   reviewsHeader: {
     marginTop: spacing.md,
   },

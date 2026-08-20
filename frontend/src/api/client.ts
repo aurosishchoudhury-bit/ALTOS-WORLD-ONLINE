@@ -16,6 +16,7 @@ export type Product = {
   bv?: number;
   weight: string;
   weight_grams?: number;
+  dosage?: string;
   category: string;
   image: string;
   images?: string[];

@@ -97,6 +97,7 @@ export default function ProductForm() {
   const [offerPrice, setOfferPrice] = useState("");
   const [weight, setWeight] = useState("");
   const [weightGrams, setWeightGrams] = useState("");
+  const [dosage, setDosage] = useState("");
   const [bv, setBv] = useState("");
   const [category, setCategory] = useState("Supplements");
   const [image, setImage] = useState("");
@@ -116,6 +117,7 @@ export default function ProductForm() {
           setOfferPrice(p.offer_price ? String(p.offer_price) : "");
           setWeight(p.weight || "");
           setWeightGrams(p.weight_grams ? String(p.weight_grams) : "");
+          setDosage((p as any).dosage || "");
           setBv(p.bv ? String(p.bv) : "");
           setCategory(p.category);
           setImage(p.image);
@@ -157,6 +159,7 @@ export default function ProductForm() {
       offer_price: offerPrice.trim() && !isNaN(offerNum) ? offerNum : 0,
       weight: weight.trim(),
       weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
+      dosage: dosage.trim(),
       bv: bv.trim() && !isNaN(parseFloat(bv)) ? parseFloat(bv) : 0,
       category: category.trim() || "Supplements",
       image: images[0] || image.trim(),
@@ -363,6 +366,13 @@ export default function ProductForm() {
           onChangeText={setWeightGrams}
           placeholder="e.g. 250"
           keyboardType="decimal-pad"
+        />
+        <FormField
+          testID="form-dosage"
+          label="Dosage (shown on product page)"
+          value={dosage}
+          onChangeText={setDosage}
+          placeholder="e.g. 1 capsule twice daily after meals"
         />
         <FormField
           testID="form-bv"

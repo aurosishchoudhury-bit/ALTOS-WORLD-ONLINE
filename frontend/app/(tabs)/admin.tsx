@@ -64,7 +64,7 @@ export default function Admin() {
   const [confirmTarget, setConfirmTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [shiprocket, setShiprocket] = useState<{ connected: boolean; email?: string }>({ connected: false });
+  const [shiprocket, setShiprocket] = useState<{ connected: boolean; email?: string; verified?: boolean }>({ connected: false });
   const [srModal, setSrModal] = useState(false);
   const [srEmail, setSrEmail] = useState("");
   const [srPassword, setSrPassword] = useState("");
@@ -114,11 +114,15 @@ export default function Admin() {
     if (!srEmail.trim() || !srPassword) return toast.show("Enter your Shiprocket API user email & password");
     setSrConnecting(true);
     try {
-      await api.shiprocketConnect(srEmail.trim(), srPassword);
-      setShiprocket({ connected: true, email: srEmail.trim() });
+      const res = await api.shiprocketConnect(srEmail.trim(), srPassword);
+      setShiprocket({ connected: true, email: srEmail.trim(), verified: res.verified });
       setSrModal(false);
       setSrPassword("");
-      toast.show("Shiprocket account linked");
+      toast.show(
+        res.verified
+          ? "Shiprocket account linked"
+          : "Shiprocket linked — will verify automatically after deployment",
+      );
     } catch (e: any) {
       toast.show(e?.message || "Could not link Shiprocket");
     } finally {
@@ -140,6 +144,7 @@ export default function Admin() {
     setSrSyncing(true);
     try {
       const res = await api.shiprocketSync();
+      setShiprocket((s) => ({ ...s, verified: true }));
       if (res.updated.length > 0) {
         toast.show(`${res.updated.length} order(s) updated from Shiprocket`);
         await load();
@@ -187,7 +192,7 @@ export default function Admin() {
           </AppText>
           <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.srSub}>
             {shiprocket.connected
-              ? `Linked · ${shiprocket.email}`
+              ? `Linked · ${shiprocket.email}${shiprocket.verified ? "" : " · verification pending"}`
               : "Link your account to sync shipping status"}
           </AppText>
         </View>
@@ -207,6 +212,15 @@ export default function Admin() {
       </View>
       {shiprocket.connected && (
         <>
+          {!shiprocket.verified && (
+            <View style={styles.srPendingNote}>
+              <Feather name="info" size={14} color={colors.warning} />
+              <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.srPendingText}>
+                Shiprocket blocks requests from this development preview. Your credentials are
+                saved — sync will start working automatically once the app is deployed.
+              </AppText>
+            </View>
+          )}
           <Button
             testID="shiprocket-sync"
             label={srSyncing ? "Syncing…" : "Sync shipping status"}
@@ -759,6 +773,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     height: 44,
   },
+  srPendingNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
+  srPendingText: { flex: 1, fontSize: 11, lineHeight: 16 },
   srHint: {
     fontSize: 11,
     lineHeight: 16,
