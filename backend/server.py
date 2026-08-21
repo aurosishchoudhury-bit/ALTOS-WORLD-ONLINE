@@ -274,7 +274,7 @@ async def list_products(category: Optional[str] = None):
     return [Product(**{**d, **ratings.get(d["id"], {})}) for d in docs]
 
 
-BASE_CATEGORIES = ["Supplements", "Skincare", "Home Care", "Personal Care"]
+BASE_CATEGORIES = ["Supplements", "Skincare", "Hair Care", "Home Care", "Personal Care", "Agriculture/Veterinary"]
 
 
 @api_router.get("/categories")

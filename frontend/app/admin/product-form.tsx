@@ -14,7 +14,7 @@ import { useToast } from "@/src/components/Toast";
 import { api, API, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
-const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Home Care", "Personal Care"];
+const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Hair Care", "Home Care", "Personal Care", "Agriculture/Veterinary"];
 const MAX_IMAGES = 4;
 
 export default function ProductForm() {

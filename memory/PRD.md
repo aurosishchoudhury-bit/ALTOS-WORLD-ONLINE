@@ -6,7 +6,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Clean & minimal design, branded "Altos World Online Store".
 
 ## Completed Features
-- Product catalog with categories, search, bestsellers row
+- Product catalog with categories, search, bestsellers row. Categories (June 2026): Supplements, Skincare, Hair Care, Home Care, Personal Care, Agriculture/Veterinary (BASE_CATEGORIES in server.py + CATEGORY_OPTIONS in admin/product-form.tsx).
 - Dynamic pricing: verified Altos ID holders see DP price (`price`) + BV; guests see `offer_price`. MRP strikethrough shown.
 - Altos ID WebView login with auto-logout session (AltosAuthContext)
 - BV (Business Volume) totals + gated WhatsApp Instant BV button
