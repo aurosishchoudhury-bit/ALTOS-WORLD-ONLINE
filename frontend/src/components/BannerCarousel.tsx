@@ -9,8 +9,9 @@ type Banner = { id: string; image: string };
 
 export default function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { width } = useWindowDimensions();
-  const bannerWidth = width - spacing.lg * 2;
-  const bannerHeight = Math.round((bannerWidth * 9) / 16); // 16:9 aspect ratio
+  // Full-width on phones; capped on wide screens (web preview/tablets) so it doesn't blow up.
+  const bannerWidth = Math.min(width - spacing.lg * 2, 420);
+  const bannerHeight = Math.round((bannerWidth * 16) / 9); // 9:16 portrait ratio
   const listRef = useRef<FlatList>(null);
   const indexRef = useRef(0);
   const [active, setActive] = useState(0);
@@ -29,7 +30,7 @@ export default function BannerCarousel({ banners }: { banners: Banner[] }) {
   if (banners.length === 0) return null;
 
   return (
-    <View style={styles.wrap} testID="banner-carousel">
+    <View style={[styles.wrap, { width: bannerWidth }]} testID="banner-carousel">
       <FlatList
         ref={listRef}
         data={banners}
@@ -71,6 +72,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     borderRadius: radius.lg,
     overflow: "hidden",
+    alignSelf: "center",
   },
   banner: {
     backgroundColor: colors.surfaceSecondary,
