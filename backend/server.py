@@ -140,6 +140,8 @@ class ReviewIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     rating: int = Field(ge=1, le=5)
     comment: str = Field(default="", max_length=1000)
+    altos_verified: bool = False
+    phone: str = Field(default="", max_length=20)
 
 
 class Review(ReviewIn):
@@ -306,9 +308,36 @@ async def add_review(product_id: str, payload: ReviewIn):
     product = await db.products.find_one({"id": product_id}, {"_id": 0, "id": 1})
     if not product:
         raise HTTPException(404, "Product not found")
-    review = Review(product_id=product_id, **payload.dict())
-    await db.reviews.insert_one(review.dict())
-    return review.dict()
+    # Reviews are allowed for Altos ID holders, or non-Altos customers who purchased this product.
+    if not payload.altos_verified:
+        norm = _norm_phone(payload.phone)
+        if len(norm) < 10:
+            raise HTTPException(400, "Enter the mobile number you used to purchase this product")
+        purchased = False
+        docs = await db.orders.find(
+            {"status": {"$ne": "created"}}, {"_id": 0, "customer.phone": 1, "items.id": 1}
+        ).to_list(5000)
+        for o in docs:
+            if _norm_phone(o.get("customer", {}).get("phone", "")) != norm:
+                continue
+            if any(i.get("id") == product_id for i in o.get("items", [])):
+                purchased = True
+                break
+        if not purchased:
+            raise HTTPException(
+                403,
+                "Only Altos ID holders or customers who purchased this product can leave a review",
+            )
+    data = payload.dict()
+    data.pop("altos_verified", None)
+    data.pop("phone", None)
+    review = Review(product_id=product_id, **data)
+    doc = review.dict()
+    doc["verified_buyer"] = not payload.altos_verified
+    doc["altos_holder"] = payload.altos_verified
+    await db.reviews.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
 
 
 # ---------------- Home banners ----------------

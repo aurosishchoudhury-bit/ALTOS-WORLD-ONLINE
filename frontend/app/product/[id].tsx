@@ -47,6 +47,7 @@ export default function ProductDetail() {
   const [revName, setRevName] = useState("");
   const [revRating, setRevRating] = useState(0);
   const [revComment, setRevComment] = useState("");
+  const [revPhone, setRevPhone] = useState("");
   const [revSubmitting, setRevSubmitting] = useState(false);
   const [shipText, setShipText] = useState("Free up to 3 kg · ₹50 for 3–5 kg · ₹100 above 5 kg.");
 
@@ -79,20 +80,25 @@ export default function ProductDetail() {
     if (!product) return;
     if (!revName.trim()) return toast.show("Please enter your name");
     if (revRating < 1) return toast.show("Please select a star rating");
+    if (!verified && revPhone.trim().length < 10)
+      return toast.show("Enter the mobile number you used to purchase");
     setRevSubmitting(true);
     try {
       await api.addReview(product.id, {
         name: revName.trim(),
         rating: revRating,
         comment: revComment.trim(),
+        altos_verified: verified,
+        phone: revPhone.trim(),
       });
       setRevName("");
       setRevRating(0);
       setRevComment("");
+      setRevPhone("");
       toast.show("Thanks for your review!");
       await loadReviews(product.id);
-    } catch {
-      toast.show("Could not submit review");
+    } catch (e: any) {
+      toast.show(e?.message || "Could not submit review");
     } finally {
       setRevSubmitting(false);
     }
@@ -349,6 +355,11 @@ export default function ProductDetail() {
             <AppText variant="semibold" style={styles.writeTitle}>
               Write a review
             </AppText>
+            <AppText variant="body" color={colors.muted} style={styles.reviewNote}>
+              {verified
+                ? "Reviewing as a verified Altos ID holder."
+                : "Reviews are open to Altos ID holders and customers who purchased this product."}
+            </AppText>
             <View style={styles.starInputRow}>
               <Stars value={revRating} size={26} onChange={setRevRating} />
             </View>
@@ -359,6 +370,16 @@ export default function ProductDetail() {
               onChangeText={setRevName}
               placeholder="e.g. Priya"
             />
+            {!verified && (
+              <FormField
+                testID="review-phone"
+                label="Mobile number used at purchase"
+                value={revPhone}
+                onChangeText={setRevPhone}
+                placeholder="10-digit mobile"
+                keyboardType="phone-pad"
+              />
+            )}
             <FormField
               testID="review-comment"
               label="Your review (optional)"
@@ -612,6 +633,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   writeTitle: { fontSize: 15, marginBottom: spacing.sm },
+  reviewNote: { fontSize: 12, lineHeight: 17, marginBottom: spacing.sm },
   starInputRow: {
     marginBottom: spacing.lg,
     marginTop: spacing.xs,

@@ -192,7 +192,10 @@ export const api = {
   async getDiseaseProducts(id: string): Promise<Product[]> {
     return handle(await fetch(`${API}/diseases/${id}/products`));
   },
-  async addReview(productId: string, data: { name: string; rating: number; comment: string }) {
+  async addReview(
+    productId: string,
+    data: { name: string; rating: number; comment: string; altos_verified: boolean; phone?: string },
+  ) {
     return handle(
       await fetch(`${API}/products/${productId}/reviews`, {
         method: "POST",
