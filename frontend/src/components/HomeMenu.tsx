@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { View, Modal, Pressable, StyleSheet, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Modal, Pressable, StyleSheet, ScrollView, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome } from "@expo/vector-icons";
 
 import AppText from "./AppText";
 import { openBulkOrderChat, openFranchiseChat } from "@/src/utils/whatsapp";
+import { api } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 type Props = {
@@ -19,6 +20,20 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [catsOpen, setCatsOpen] = useState(false);
+  const [social, setSocial] = useState<{ key: string; icon: any; url: string }[]>([]);
+
+  useEffect(() => {
+    if (!visible) return;
+    api.getSettings().then((s) => {
+      const links = [
+        { key: "youtube", icon: "youtube-play", url: s.youtube_url },
+        { key: "facebook", icon: "facebook", url: s.facebook_url },
+        { key: "instagram", icon: "instagram", url: s.instagram_url },
+        { key: "x", icon: "twitter", url: s.x_url },
+      ].filter((l) => !!l.url);
+      setSocial(links);
+    }).catch(() => {});
+  }, [visible]);
 
   const go = (path: string) => {
     onClose();
@@ -140,6 +155,21 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
             />
           </ScrollView>
 
+          {social.length > 0 && (
+            <View style={styles.socialRow} testID="menu-social">
+              {social.map((l) => (
+                <Pressable
+                  key={l.key}
+                  testID={`social-${l.key}`}
+                  onPress={() => Linking.openURL(l.url).catch(() => {})}
+                  style={styles.socialBtn}
+                >
+                  <FontAwesome name={l.icon} size={20} color={colors.brand} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           <AppText variant="body" color={colors.muted} style={styles.footerText}>
             Altos World · Cuttack Super Zone
           </AppText>
@@ -197,4 +227,15 @@ const styles = StyleSheet.create({
   },
   subLabel: { fontSize: 14 },
   footerText: { fontSize: 11, marginTop: spacing.lg },
+  socialRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.lg },
+  socialBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
 });

@@ -633,6 +633,10 @@ class SettingsIn(BaseModel):
     free_above_amount: float = Field(default=0, ge=0)
     min_purchase_regular: float = Field(default=399, ge=0)
     min_purchase_altos: float = Field(default=599, ge=0)
+    youtube_url: str = Field(default="", max_length=300)
+    facebook_url: str = Field(default="", max_length=300)
+    instagram_url: str = Field(default="", max_length=300)
+    x_url: str = Field(default="", max_length=300)
 
 
 @api_router.get("/settings")
@@ -910,6 +914,11 @@ DEFAULT_SETTINGS = {
     # minimum order value
     "min_purchase_regular": 399.0,
     "min_purchase_altos": 599.0,
+    # social media links (shown in menu; empty = hidden)
+    "youtube_url": "",
+    "facebook_url": "",
+    "instagram_url": "",
+    "x_url": "",
 }
 
 

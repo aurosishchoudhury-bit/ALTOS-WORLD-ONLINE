@@ -26,6 +26,10 @@ export default function StoreSettings() {
   const [freeAbove, setFreeAbove] = useState("0");
   const [minRegular, setMinRegular] = useState("399");
   const [minAltos, setMinAltos] = useState("599");
+  const [youtube, setYoutube] = useState("");
+  const [facebook, setFacebook] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [xUrl, setXUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -39,6 +43,10 @@ export default function StoreSettings() {
       setFreeAbove(String(s.free_above_amount));
       setMinRegular(String(s.min_purchase_regular));
       setMinAltos(String(s.min_purchase_altos));
+      setYoutube(s.youtube_url || "");
+      setFacebook(s.facebook_url || "");
+      setInstagram(s.instagram_url || "");
+      setXUrl(s.x_url || "");
     }).catch(() => {});
   }, []);
 
@@ -59,6 +67,10 @@ export default function StoreSettings() {
         free_above_amount: num(freeAbove),
         min_purchase_regular: num(minRegular),
         min_purchase_altos: num(minAltos),
+        youtube_url: youtube.trim(),
+        facebook_url: facebook.trim(),
+        instagram_url: instagram.trim(),
+        x_url: xUrl.trim(),
       });
       toast.show("Settings saved");
       router.back();
@@ -127,6 +139,18 @@ export default function StoreSettings() {
         <FormField testID="min-regular" label="Non-Altos customers (₹)" value={minRegular} onChangeText={setMinRegular} keyboardType="numeric" placeholder="399" />
         <FormField testID="min-altos" label="Altos ID holders (₹)" value={minAltos} onChangeText={setMinAltos} keyboardType="numeric" placeholder="599" />
 
+        <View style={styles.divider} />
+        <AppText variant="displaySemiBold" style={styles.section}>
+          Social Media Links
+        </AppText>
+        <AppText variant="body" color={colors.muted} style={styles.hint}>
+          Leave blank to hide an icon. Links appear in the customer menu.
+        </AppText>
+        <FormField testID="social-youtube" label="YouTube URL" value={youtube} onChangeText={setYoutube} autoCapitalize="none" placeholder="https://youtube.com/@yourchannel" />
+        <FormField testID="social-facebook" label="Facebook URL" value={facebook} onChangeText={setFacebook} autoCapitalize="none" placeholder="https://facebook.com/yourpage" />
+        <FormField testID="social-instagram" label="Instagram URL" value={instagram} onChangeText={setInstagram} autoCapitalize="none" placeholder="https://instagram.com/yourhandle" />
+        <FormField testID="social-x" label="X (Twitter) URL" value={xUrl} onChangeText={setXUrl} autoCapitalize="none" placeholder="https://x.com/yourhandle" />
+
         <Button testID="save-settings" label="Save Settings" onPress={save} loading={saving} style={{ marginTop: spacing.xl }} />
       </KeyboardAwareScrollView>
     </View>
@@ -160,4 +184,5 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { fontSize: 13 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xl },
+  hint: { fontSize: 12, marginBottom: spacing.md },
 });

@@ -45,6 +45,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 - Store settings (June 2026): admin → "Store Settings" (/admin/settings) controls shipping (mode: weight-based tiers OR flat rate + free-above-amount) and minimum order values (non-Altos & Altos). Backend db.settings doc _id="store" with DEFAULT_SETTINGS fallback; _get_settings/_shipping_charge/_min_purchase read it (min_purchase now async). GET/PUT /api/settings. Product shipping-info text and cart min-purchase read live from settings.
 - Order lookup (June 2026): customers → hamburger "Track My Orders" (/orders) enter mobile → GET /api/orders/lookup?phone= returns their non-"created" orders with items, totals, COD due, and Shiprocket tracking_url/courier when available.
 - Vibrant palette (June 2026): theme.ts colors brightened — brand #3E8E4C (vibrant herbal green), success #2E9E5B, warning #E8963E, error #D9534F, greener surface tints (#F1F7EC etc.). All components consume theme constants so change is global.
+- Social media links (June 2026): settings fields youtube_url/facebook_url/instagram_url/x_url (editable in Admin → Store Settings, blank = icon hidden). Icons (FontAwesome) shown at bottom of hamburger menu drawer, open via Linking. Placeholder links (@altosworld handles) currently seeded — admin should replace with real URLs.
 - No auth anywhere by design; admin tab openly accessible.
 - Backend: /app/backend/server.py (single file). Frontend routes in /app/frontend/app.
 - Test creds file: /app/memory/test_credentials.md (no creds needed — guest app).
