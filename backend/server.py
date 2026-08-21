@@ -593,6 +593,65 @@ async def delete_registration(reg_id: str):
     return {"ok": True}
 
 
+# ---------------- Store Settings (shipping + minimum order) ----------------
+class SettingsIn(BaseModel):
+    shipping_mode: str = Field(default="weight")  # weight | flat
+    free_upto_grams: float = Field(default=3000, ge=0)
+    mid_upto_grams: float = Field(default=5000, ge=0)
+    mid_charge: float = Field(default=50, ge=0)
+    high_charge: float = Field(default=100, ge=0)
+    flat_charge: float = Field(default=50, ge=0)
+    free_above_amount: float = Field(default=0, ge=0)
+    min_purchase_regular: float = Field(default=399, ge=0)
+    min_purchase_altos: float = Field(default=599, ge=0)
+
+
+@api_router.get("/settings")
+async def get_settings():
+    return await _get_settings()
+
+
+@api_router.put("/settings")
+async def update_settings(payload: SettingsIn):
+    data = payload.dict()
+    if data["shipping_mode"] not in ("weight", "flat"):
+        raise HTTPException(400, "shipping_mode must be 'weight' or 'flat'")
+    await db.settings.update_one({"_id": "store"}, {"$set": data}, upsert=True)
+    return await _get_settings()
+
+
+# ---------------- Customer order lookup by mobile ----------------
+@api_router.get("/orders/lookup")
+async def lookup_orders(phone: str):
+    norm = _norm_phone(phone)
+    if len(norm) < 10:
+        raise HTTPException(400, "Enter a valid 10-digit mobile number")
+    docs = await db.orders.find(
+        {"status": {"$ne": "created"}}, {"_id": 0}
+    ).sort("created_at", -1).to_list(2000)
+    out = []
+    for o in docs:
+        if _norm_phone(o.get("customer", {}).get("phone", "")) != norm:
+            continue
+        out.append({
+            "id": o["id"],
+            "created_at": o.get("created_at"),
+            "status": o.get("status"),
+            "items": [
+                {"name": i.get("name"), "quantity": i.get("quantity"), "line_total": i.get("line_total")}
+                for i in o.get("items", [])
+            ],
+            "amount": o.get("amount"),
+            "total_billing": o.get("total_billing") or o.get("amount"),
+            "payment_mode": o.get("payment_mode", "full"),
+            "cod_due": o.get("cod_due", 0),
+            "awb": o.get("awb"),
+            "courier_name": o.get("courier_name"),
+            "tracking_url": o.get("tracking_url"),
+        })
+    return out
+
+
 # ---------------- Monthly Sales Report (paid orders) ----------------
 _MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
@@ -804,23 +863,49 @@ def _unit_price(product: dict, altos_verified: bool) -> float:
 HEAVY_ITEM_THRESHOLD_G = 500  # items weighing >= 500g are limited per order
 HEAVY_ITEM_MAX_QTY = 2
 
-# Minimum cart subtotal required to place an order.
-MIN_PURCHASE_ALTOS = 599.0  # verified Altos ID holders
-MIN_PURCHASE_REGULAR = 399.0  # non-Altos customers
-
 # Partial COD: advance fraction charged online (rest collected on delivery). Non-Altos only.
 COD_ADVANCE_RATE = 0.30
 
 
-def _min_purchase(altos_verified: bool) -> float:
-    return MIN_PURCHASE_ALTOS if altos_verified else MIN_PURCHASE_REGULAR
+# Store settings defaults (admin-editable via /api/settings).
+DEFAULT_SETTINGS = {
+    "shipping_mode": "weight",  # "weight" | "flat"
+    # weight-based tiers
+    "free_upto_grams": 3000,
+    "mid_upto_grams": 5000,
+    "mid_charge": 50.0,
+    "high_charge": 100.0,
+    # flat-rate mode
+    "flat_charge": 50.0,
+    "free_above_amount": 0,  # 0 = never free
+    # minimum order value
+    "min_purchase_regular": 399.0,
+    "min_purchase_altos": 599.0,
+}
 
 
-def _shipping_charge(total_weight_g: float) -> float:
-    if total_weight_g > 5000:
-        return 100.0
-    if total_weight_g > 3000:
-        return 50.0
+async def _get_settings() -> dict:
+    doc = await db.settings.find_one({"_id": "store"}, {"_id": 0})
+    merged = {**DEFAULT_SETTINGS, **(doc or {})}
+    return merged
+
+
+async def _min_purchase(altos_verified: bool) -> float:
+    s = await _get_settings()
+    return float(s["min_purchase_altos"] if altos_verified else s["min_purchase_regular"])
+
+
+def _shipping_charge(total_weight_g: float, subtotal: float, s: dict) -> float:
+    if s.get("shipping_mode") == "flat":
+        free_above = float(s.get("free_above_amount") or 0)
+        if free_above > 0 and subtotal >= free_above:
+            return 0.0
+        return float(s.get("flat_charge") or 0)
+    # weight-based tiers
+    if total_weight_g > float(s.get("mid_upto_grams") or 5000):
+        return float(s.get("high_charge") or 0)
+    if total_weight_g > float(s.get("free_upto_grams") or 3000):
+        return float(s.get("mid_charge") or 0)
     return 0.0
 
 
@@ -858,7 +943,8 @@ async def _price_cart(items: List[CartItemIn], altos_verified: bool = False):
             "weight_grams": grams,
             "bv": item_bv,
         })
-    shipping = _shipping_charge(total_weight)
+    s = await _get_settings()
+    shipping = _shipping_charge(total_weight, subtotal, s)
     total = round(subtotal + shipping, 2)
     return round(subtotal, 2), shipping, round(total_weight, 1), round(total_bv, 1), total, snapshot
 
@@ -1011,7 +1097,7 @@ async def create_order(payload: CreateOrderRequest):
     subtotal, shipping, total_weight, total_bv, total, snapshot = await _price_cart(
         payload.items, payload.altos_verified
     )
-    min_purchase = _min_purchase(payload.altos_verified)
+    min_purchase = await _min_purchase(payload.altos_verified)
     if subtotal < min_purchase:
         who = "Altos ID holders" if payload.altos_verified else "orders"
         raise HTTPException(

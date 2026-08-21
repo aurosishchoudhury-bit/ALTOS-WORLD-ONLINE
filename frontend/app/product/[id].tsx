@@ -48,6 +48,21 @@ export default function ProductDetail() {
   const [revRating, setRevRating] = useState(0);
   const [revComment, setRevComment] = useState("");
   const [revSubmitting, setRevSubmitting] = useState(false);
+  const [shipText, setShipText] = useState("Free up to 3 kg · ₹50 for 3–5 kg · ₹100 above 5 kg.");
+
+  useEffect(() => {
+    api.getSettings().then((s) => {
+      if (s.shipping_mode === "flat") {
+        const free = Number(s.free_above_amount) > 0 ? ` Free above ₹${s.free_above_amount}.` : "";
+        setShipText(`Flat ₹${s.flat_charge} shipping.${free}`);
+      } else {
+        const kg = (g: number) => `${(Number(g) / 1000).toString()} kg`;
+        setShipText(
+          `Free up to ${kg(s.free_upto_grams)} · ₹${s.mid_charge} for ${kg(s.free_upto_grams)}–${kg(s.mid_upto_grams)} · ₹${s.high_charge} above ${kg(s.mid_upto_grams)}.`,
+        );
+      }
+    }).catch(() => {});
+  }, []);
 
   const loadReviews = async (pid: string) => {
     try {
@@ -269,7 +284,7 @@ export default function ProductDetail() {
             <View style={styles.infoRow}>
               <Feather name="package" size={16} color={colors.brand} />
               <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.infoText}>
-                Shipping: Free up to 3 kg · ₹50 for 3–5 kg · ₹100 above 5 kg.
+                Shipping: {shipText}
               </AppText>
             </View>
             {!verified && (

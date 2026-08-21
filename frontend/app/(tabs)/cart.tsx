@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -10,7 +10,7 @@ import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { resolveImageUri } from "@/src/api/client";
+import { resolveImageUri, api } from "@/src/api/client";
 import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight, minPurchaseFor } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
@@ -21,7 +21,14 @@ export default function CartScreen() {
     useCart();
   const { verified } = useAltosAuth();
 
-  const minPurchase = minPurchaseFor(verified);
+  const [minPurchase, setMinPurchase] = useState(minPurchaseFor(verified));
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => setMinPurchase(verified ? s.min_purchase_altos : s.min_purchase_regular))
+      .catch(() => setMinPurchase(minPurchaseFor(verified)));
+  }, [verified]);
+
   const belowMin = subtotal < minPurchase;
   const shortfall = Math.max(0, minPurchase - subtotal);
 

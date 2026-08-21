@@ -42,6 +42,8 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 3. **Shiprocket verification (P2)** — account LINKED (altosworldonline@gmail.com, creds in db.integrations doc _id="shiprocket"). Shiprocket WAF blocks this dev environment IP (403 HTML on all endpoints) so verified=false; token/verification + "Sync shipping status" auto-activate from production after deploy. Connect endpoint stores creds on WAF block (verified=false) and errors return 400 (not 502 — Cloudflare replaces 502 bodies).
 
 ## Notes
+- Store settings (June 2026): admin → "Store Settings" (/admin/settings) controls shipping (mode: weight-based tiers OR flat rate + free-above-amount) and minimum order values (non-Altos & Altos). Backend db.settings doc _id="store" with DEFAULT_SETTINGS fallback; _get_settings/_shipping_charge/_min_purchase read it (min_purchase now async). GET/PUT /api/settings. Product shipping-info text and cart min-purchase read live from settings.
+- Order lookup (June 2026): customers → hamburger "Track My Orders" (/orders) enter mobile → GET /api/orders/lookup?phone= returns their non-"created" orders with items, totals, COD due, and Shiprocket tracking_url/courier when available.
 - Vibrant palette (June 2026): theme.ts colors brightened — brand #3E8E4C (vibrant herbal green), success #2E9E5B, warning #E8963E, error #D9534F, greener surface tints (#F1F7EC etc.). All components consume theme constants so change is global.
 - No auth anywhere by design; admin tab openly accessible.
 - Backend: /app/backend/server.py (single file). Frontend routes in /app/frontend/app.

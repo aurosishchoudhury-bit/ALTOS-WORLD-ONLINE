@@ -113,6 +113,7 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
               onPress={() => go("/terms")}
             />
             <Item testID="menu-contact" icon="phone" label="Contact Us" onPress={() => go("/contact")} />
+            <Item testID="menu-track-orders" icon="package" label="Track My Orders" onPress={() => go("/orders")} />
             <Item
               testID="menu-register"
               icon="user-plus"

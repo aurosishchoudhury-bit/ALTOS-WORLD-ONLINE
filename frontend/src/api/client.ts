@@ -231,6 +231,21 @@ export const api = {
   async shiprocketSync(): Promise<{ checked: number; shiprocket_orders: number; updated: any[] }> {
     return handle(await fetch(`${API}/shiprocket/sync`, { method: "POST" }));
   },
+  async getSettings(): Promise<any> {
+    return handle(await fetch(`${API}/settings`));
+  },
+  async updateSettings(data: any): Promise<any> {
+    return handle(
+      await fetch(`${API}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async lookupOrders(phone: string): Promise<any[]> {
+    return handle(await fetch(`${API}/orders/lookup?phone=${encodeURIComponent(phone)}`));
+  },
   async listCoupons(): Promise<any[]> {
     return handle(await fetch(`${API}/coupons`));
   },
