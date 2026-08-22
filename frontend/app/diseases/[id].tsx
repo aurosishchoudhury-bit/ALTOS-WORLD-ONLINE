@@ -7,15 +7,18 @@ import { Feather } from "@expo/vector-icons";
 import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
 import { useCart } from "@/src/context/CartContext";
+import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { useToast } from "@/src/components/Toast";
 import { api, Product } from "@/src/api/client";
-import { colors, spacing } from "@/src/theme/theme";
+import { getPriceInfo } from "@/src/utils/pricing";
+import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function DiseaseProducts() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
+  const { verified } = useAltosAuth();
   const toast = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,6 +35,14 @@ export default function DiseaseProducts() {
       .catch(() => toast.show("Could not load products"))
       .finally(() => setLoading(false));
   }, [id, toast]);
+
+  const inStock = products.filter((p) => (p.stock ?? 1) > 0);
+  const packageTotal = inStock.reduce((s, p) => s + getPriceInfo(p, verified).unit, 0);
+
+  const addPackage = () => {
+    inStock.forEach((p) => addItem(p, 1));
+    toast.show(`Complete package (${inStock.length} products) added to cart`);
+  };
 
   return (
     <View style={styles.container}>
@@ -83,7 +94,7 @@ export default function DiseaseProducts() {
                     {p.name}
                   </AppText>
                   <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.cell}>
-                    {dosages[p.id] || "As directed"}
+                    {dosages[p.id] || p.dosage || "As directed"}
                   </AppText>
                 </View>
               ))}
@@ -100,6 +111,25 @@ export default function DiseaseProducts() {
             />
           )}
         />
+      )}
+
+      {!loading && inStock.length > 0 && (
+        <View style={[styles.packageBar, { paddingBottom: insets.bottom + spacing.md }]}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="semibold" style={styles.packageTitle}>
+              Complete package · {inStock.length} {inStock.length === 1 ? "product" : "products"}
+            </AppText>
+            <AppText variant="displaySemiBold" style={styles.packageAmount} testID="package-total">
+              {formatINR(packageTotal)}
+            </AppText>
+          </View>
+          <Pressable testID="add-package-button" onPress={addPackage} style={styles.packageBtn}>
+            <Feather name="shopping-cart" size={16} color={colors.onBrand} />
+            <AppText variant="semibold" color={colors.onBrand} style={styles.packageBtnText}>
+              Add All to Cart
+            </AppText>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -156,4 +186,27 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cellHead: { fontSize: 12 },
+  packageBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  packageTitle: { fontSize: 12, color: colors.onSurfaceSecondary },
+  packageAmount: { fontSize: 20, marginTop: 2 },
+  packageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.brand,
+    borderRadius: 12,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    minHeight: 48,
+  },
+  packageBtnText: { fontSize: 14 },
 });
