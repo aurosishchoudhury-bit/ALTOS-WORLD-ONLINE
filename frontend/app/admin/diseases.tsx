@@ -35,13 +35,30 @@ export default function ManageDiseases() {
   const openForm = (disease?: any) => {
     setEditing(disease || null);
     setName(disease?.name || "");
-    setSelected(disease?.product_ids || []);
-    setDosages(disease?.dosages || {});
+    const ids: string[] = disease?.product_ids || [];
+    setSelected(ids);
+    // Pre-fill any missing dosages from each product's own dosage field
+    const merged: Record<string, string> = { ...(disease?.dosages || {}) };
+    ids.forEach((pid) => {
+      if (!merged[pid]) {
+        const prod = products.find((p) => p.id === pid);
+        if (prod?.dosage) merged[pid] = prod.dosage;
+      }
+    });
+    setDosages(merged);
     setModal(true);
   };
 
   const toggleProduct = (pid: string) =>
-    setSelected((prev) => (prev.includes(pid) ? prev.filter((x) => x !== pid) : [...prev, pid]));
+    setSelected((prev) => {
+      if (prev.includes(pid)) return prev.filter((x) => x !== pid);
+      // Auto-fill dosage from the product's own dosage (set in Add Product)
+      const prod = products.find((p) => p.id === pid);
+      if (prod?.dosage && !dosages[pid]) {
+        setDosages((d) => ({ ...d, [pid]: prod.dosage as string }));
+      }
+      return [...prev, pid];
+    });
 
   const save = async () => {
     if (!name.trim()) return toast.show("Enter a disease / concern name");
@@ -159,6 +176,9 @@ export default function ManageDiseases() {
                 <AppText variant="semibold" style={styles.pickLabel}>
                   Dosage per product
                 </AppText>
+                <AppText variant="body" color={colors.muted} style={styles.dosageHint}>
+                  Auto-filled from the product&apos;s dosage — edit if this concern needs a different dose.
+                </AppText>
                 <ScrollView style={styles.dosageList} showsVerticalScrollIndicator={false}>
                   {products
                     .filter((p) => selected.includes(p.id))
@@ -237,6 +257,7 @@ const styles = StyleSheet.create({
   pickLabel: { fontSize: 13, marginBottom: spacing.sm },
   pickList: { maxHeight: 160, marginBottom: spacing.md },
   dosageList: { maxHeight: 190, marginBottom: spacing.lg },
+  dosageHint: { fontSize: 11, marginBottom: spacing.sm },
   dosageRow: { marginBottom: spacing.xs },
   dosageName: { fontSize: 13, marginBottom: 2 },
   pickRow: {
