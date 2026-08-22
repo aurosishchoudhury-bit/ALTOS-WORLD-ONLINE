@@ -510,6 +510,92 @@ async def upload_video(file: UploadFile = File(...)):
     return {"path": result["path"], "video_url": f"/api/files/{result['path']}"}
 
 
+# ---------------- Import product from altosindia.net link ----------------
+class ImportUrlRequest(BaseModel):
+    url: str = Field(min_length=10, max_length=500)
+
+
+_SCRAPE_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36"
+
+
+def _fetch_altos_page(url: str):
+    s = requests.Session()
+    s.headers["User-Agent"] = _SCRAPE_UA
+    r = s.get(url, timeout=25, allow_redirects=True)
+    r.raise_for_status()
+    return r.text, s
+
+
+def _strip_tags(html_str: str) -> str:
+    import re as _re
+    import html as _html
+    return _html.unescape(_re.sub(r"\s+", " ", _re.sub(r"<[^>]+>", " ", html_str)).strip())
+
+
+@api_router.post("/products/import-url")
+async def import_product_url(payload: ImportUrlRequest):
+    import re as _re
+    url = payload.url.strip()
+    if "altosindia.net" not in url:
+        raise HTTPException(400, "Paste a valid altosindia.net product link")
+    try:
+        html, sess = await run_in_threadpool(_fetch_altos_page, url)
+    except Exception:
+        raise HTTPException(502, "Could not open that link — check the URL and try again")
+
+    out: dict = {"name": "", "description": "", "weight": "", "weight_grams": 0,
+                 "dosage": "", "mrp": 0, "images": []}
+
+    m = _re.search(r"<h1[^>]*>(.*?)</h1>", html, _re.S)
+    if m:
+        out["name"] = _strip_tags(m.group(1))
+
+    m = _re.search(r"Packing\s*:\s*(?:</?[^>]*>|\s)*([^<]+)", html)
+    if m:
+        out["weight"] = m.group(1).strip()
+
+    m = _re.search(r"Weight\s*:\s*(?:</?[^>]*>|\s)*([\d.]+)\s*(gm|g|kg)", html, _re.I)
+    if m:
+        grams = float(m.group(1))
+        if m.group(2).lower() == "kg":
+            grams *= 1000
+        out["weight_grams"] = grams
+
+    m = _re.search(r"MRP\s*:\s*(?:</?[^>]*>|\s)*([\d.]+)", html)
+    if m:
+        out["mrp"] = float(m.group(1))
+
+    m = _re.search(r"How\s*To\s*Use\s*</h2>(.*?)(<h2|<div class=\"tab|</section)", html, _re.S | _re.I)
+    if m:
+        out["dosage"] = _strip_tags(m.group(1))[:500]
+
+    m = _re.search(r"Benefits\s*</h2>(.*?)(<h2|</section)", html, _re.S | _re.I)
+    if m:
+        out["description"] = _strip_tags(m.group(1))[:2000]
+
+    # Download the main product image and store it in our object storage.
+    img = _re.search(r'<img[^>]+src="(/storagecache/product_image/[^"]+)"', html)
+    if img:
+        img_url = "https://shop.altosindia.net" + img.group(1)
+        try:
+            def _download():
+                r = sess.get(img_url, timeout=25)
+                r.raise_for_status()
+                return r.content, r.headers.get("Content-Type", "image/jpeg").split(";")[0]
+            data, ctype = await run_in_threadpool(_download)
+            ext = ALLOWED_IMAGE_TYPES.get(ctype, "jpg")
+            path = f"{APP_NAME}/uploads/products/{uuid.uuid4().hex}.{ext}"
+            result = await run_in_threadpool(_put_object, path, data, ctype)
+            out["images"] = [f"/api/files/{result['path']}"]
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Import image download failed: %s", e)
+
+    if not out["name"]:
+        raise HTTPException(400, "Could not read product details from that page — is it a product link?")
+    return out
+
+
+
 # ---------------- Blogs & Vlogs ----------------
 class PostIn(BaseModel):
     type: str = Field(default="blog")  # blog | vlog

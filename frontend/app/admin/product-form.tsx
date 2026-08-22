@@ -104,6 +104,31 @@ export default function ProductForm() {
   const [images, setImages] = useState<string[]>([]);
   const [stock, setStock] = useState("100");
   const [bestseller, setBestseller] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const runImport = async () => {
+    if (!importUrl.trim().includes("altosindia.net")) {
+      toast.show("Paste a product link from altosindia.net");
+      return;
+    }
+    setImporting(true);
+    try {
+      const d = await api.importProductUrl(importUrl.trim());
+      if (d.name) setName(d.name);
+      if (d.description) setDescription(d.description);
+      if (d.weight) setWeight(d.weight);
+      if (d.weight_grams) setWeightGrams(String(d.weight_grams));
+      if (d.dosage) setDosage(d.dosage);
+      if (d.mrp) setMrp(String(d.mrp));
+      if (d.images?.length) setImages(d.images);
+      toast.show("Product details imported — review & set prices");
+    } catch (e: any) {
+      toast.show(e?.message || "Could not import from that link");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => {
     if (isEdit && id) {
@@ -210,6 +235,30 @@ export default function ProductForm() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
+        <View style={styles.importCard} testID="import-card">
+          <View style={styles.importHead}>
+            <Feather name="link" size={15} color={colors.brand} />
+            <AppText variant="semibold" style={styles.importTitle}>
+              Auto-fill from Altos website
+            </AppText>
+          </View>
+          <FormField
+            testID="import-url"
+            label="Paste product link (altosindia.net)"
+            value={importUrl}
+            onChangeText={setImportUrl}
+            autoCapitalize="none"
+            placeholder="https://shop.altosindia.net/eshop/product/info/…"
+          />
+          <Button
+            testID="import-button"
+            label={importing ? "Importing…" : "Auto-fill product details"}
+            variant="secondary"
+            onPress={runImport}
+            loading={importing}
+          />
+        </View>
+
         {images.length > 0 ? (
           <View style={styles.thumbRow}>
             {images.map((img, i) => (
@@ -481,6 +530,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   galleryBtnText: { fontSize: 14 },
+  importCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  importHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  importTitle: { fontSize: 14 },
   thumbRow: {
     flexDirection: "row",
     flexWrap: "wrap",

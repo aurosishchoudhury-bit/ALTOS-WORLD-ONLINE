@@ -276,6 +276,15 @@ export const api = {
   async deletePost(id: string) {
     return handle(await fetch(`${API}/posts/${id}`, { method: "DELETE" }));
   },
+  async importProductUrl(url: string): Promise<any> {
+    return handle(
+      await fetch(`${API}/products/import-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      }),
+    );
+  },
   async listCoupons(): Promise<any[]> {
     return handle(await fetch(`${API}/coupons`));
   },
