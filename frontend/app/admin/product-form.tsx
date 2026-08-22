@@ -399,6 +399,35 @@ export default function ProductForm() {
           discounted selling price with a discount badge when a % is set.
         </AppText>
 
+        {!isNaN(parseFloat(price)) && parseFloat(price) > 0 && !isNaN(parseFloat(mrp)) && parseFloat(mrp) > 0 && (() => {
+          const dp = parseFloat(price);
+          const mrpNum = parseFloat(mrp);
+          const buying = Math.round(dp * 0.88 * 100) / 100;
+          const profit = Math.round((mrpNum - buying) * 100) / 100;
+          const profitPct = Math.round((profit / mrpNum) * 1000) / 10;
+          return (
+            <View style={styles.profitCard} testID="profit-on-mrp">
+              <AppText variant="semibold" style={styles.profitTitle}>
+                Profit on MRP
+              </AppText>
+              <View style={styles.profitRow}>
+                <AppText variant="body" color={colors.onSurfaceSecondary}>
+                  Buying price (DP − 12%)
+                </AppText>
+                <AppText variant="medium">₹{buying}</AppText>
+              </View>
+              <View style={styles.profitRow}>
+                <AppText variant="body" color={colors.onSurfaceSecondary}>
+                  Profit at MRP ₹{mrpNum}
+                </AppText>
+                <AppText variant="semibold" color={colors.success}>
+                  ₹{profit} ({profitPct}%)
+                </AppText>
+              </View>
+            </View>
+          );
+        })()}
+
         <View style={styles.priceRow}>
           <View style={{ flex: 1 }}>
             <FormField
@@ -608,6 +637,20 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   priceRow: { flexDirection: "row", gap: spacing.lg },
+  profitCard: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  profitTitle: { fontSize: 13, marginBottom: spacing.sm },
+  profitRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 2,
+  },
   descInput: { minHeight: 110, textAlignVertical: "top" },
   footer: {
     paddingHorizontal: spacing.lg,
