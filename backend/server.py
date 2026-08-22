@@ -874,8 +874,8 @@ async def mark_instant_bv_done(order_id: str):
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if not order:
         raise HTTPException(404, "Order not found")
-    if not order.get("instant_bv_requested"):
-        raise HTTPException(400, "Instant BV was not requested for this order")
+    if not (order.get("instant_bv_requested") or order.get("altos_verified")):
+        raise HTTPException(400, "BV generation does not apply to this order")
     await db.orders.update_one(
         {"id": order_id},
         {"$set": {"instant_bv_processed": True, "instant_bv_processed_at": now_iso()}},

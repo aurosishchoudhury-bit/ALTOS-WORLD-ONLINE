@@ -501,11 +501,23 @@ export default function Admin() {
                   </View>
                 </View>
 
-                {item.instant_bv_requested && !item.instant_bv_processed && (
-                  <View style={styles.instantBvBadge} testID={`instant-bv-badge-${item.id}`}>
-                    <Feather name="zap" size={13} color="#8A6D00" />
-                    <AppText variant="semibold" style={styles.instantBvText}>
-                      Instant BV requested
+                {(item.instant_bv_requested || item.altos_verified) &&
+                  !item.instant_bv_processed &&
+                  item.status !== "cancelled" && (
+                  <View
+                    style={[styles.instantBvBadge, !item.instant_bv_requested && styles.pendingBvBadge]}
+                    testID={`instant-bv-badge-${item.id}`}
+                  >
+                    <Feather
+                      name={item.instant_bv_requested ? "zap" : "clock"}
+                      size={13}
+                      color={item.instant_bv_requested ? "#8A6D00" : colors.onSurfaceSecondary}
+                    />
+                    <AppText
+                      variant="semibold"
+                      style={[styles.instantBvText, !item.instant_bv_requested && styles.pendingBvText]}
+                    >
+                      {item.instant_bv_requested ? "Instant BV requested" : "Pending BV generation"}
                     </AppText>
                     <Pressable
                       testID={`bv-done-${item.id}`}
@@ -520,11 +532,11 @@ export default function Admin() {
                     </Pressable>
                   </View>
                 )}
-                {item.instant_bv_requested && item.instant_bv_processed && (
+                {(item.instant_bv_requested || item.altos_verified) && item.instant_bv_processed && (
                   <View style={styles.bvProcessedNote} testID={`bv-processed-${item.id}`}>
                     <Feather name="check-circle" size={13} color={colors.success} />
                     <AppText variant="semibold" color={colors.success} style={styles.bvProcessedText}>
-                      Instant BV generated
+                      {item.instant_bv_requested ? "Instant BV generated" : "BV generated"}
                     </AppText>
                   </View>
                 )}
@@ -766,6 +778,8 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   instantBvText: { fontSize: 12, color: "#8A6D00" },
+  pendingBvBadge: { backgroundColor: colors.surfaceSecondary },
+  pendingBvText: { color: colors.onSurfaceSecondary },
   bvDoneBtn: {
     backgroundColor: colors.brand,
     borderRadius: radius.pill,
