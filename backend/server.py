@@ -487,6 +487,93 @@ async def upload_image(file: UploadFile = File(...)):
     return {"path": result["path"], "image_url": f"/api/files/{result['path']}"}
 
 
+ALLOWED_VIDEO_TYPES = {"video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm"}
+MAX_VIDEO_BYTES = 50 * 1024 * 1024
+
+
+@api_router.post("/upload/video")
+async def upload_video(file: UploadFile = File(...)):
+    content_type = (file.content_type or "").lower()
+    if content_type not in ALLOWED_VIDEO_TYPES:
+        raise HTTPException(400, "Only MP4, MOV or WEBM videos are allowed")
+    data = await file.read()
+    if len(data) > MAX_VIDEO_BYTES:
+        raise HTTPException(400, "Video too large (max 50 MB)")
+    path = f"{APP_NAME}/uploads/vlogs/{uuid.uuid4().hex}.{ALLOWED_VIDEO_TYPES[content_type]}"
+    try:
+        result = await run_in_threadpool(_put_object, path, data, content_type)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 502
+        if status == 402:
+            raise HTTPException(402, "Storage credits exhausted — video uploads paused")
+        raise HTTPException(502, "Video upload failed, please try again")
+    return {"path": result["path"], "video_url": f"/api/files/{result['path']}"}
+
+
+# ---------------- Blogs & Vlogs ----------------
+class PostIn(BaseModel):
+    type: str = Field(default="blog")  # blog | vlog
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(default="", max_length=20000)  # blog text
+    cover_image: str = Field(default="", max_length=500)
+    video_url: str = Field(default="", max_length=500)  # uploaded video
+    youtube_url: str = Field(default="", max_length=500)
+
+
+class Post(PostIn):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
+def _validate_post(data: dict):
+    if data["type"] not in ("blog", "vlog"):
+        raise HTTPException(400, "type must be 'blog' or 'vlog'")
+    if data["type"] == "blog" and not data["content"].strip():
+        raise HTTPException(400, "Blog content is required")
+    if data["type"] == "vlog" and not (data["video_url"] or data["youtube_url"]):
+        raise HTTPException(400, "Upload a video or add a YouTube link for the vlog")
+
+
+@api_router.get("/posts")
+async def list_posts():
+    return await db.posts.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+
+
+@api_router.get("/posts/{post_id}")
+async def get_post(post_id: str):
+    doc = await db.posts.find_one({"id": post_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Post not found")
+    return doc
+
+
+@api_router.post("/posts")
+async def create_post(payload: PostIn):
+    data = payload.dict()
+    _validate_post(data)
+    post = Post(**data)
+    await db.posts.insert_one(post.dict())
+    return post.dict()
+
+
+@api_router.put("/posts/{post_id}")
+async def update_post(post_id: str, payload: PostIn):
+    data = payload.dict()
+    _validate_post(data)
+    res = await db.posts.update_one({"id": post_id}, {"$set": data})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Post not found")
+    return await db.posts.find_one({"id": post_id}, {"_id": 0})
+
+
+@api_router.delete("/posts/{post_id}")
+async def delete_post(post_id: str):
+    res = await db.posts.delete_one({"id": post_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Post not found")
+    return {"ok": True}
+
+
 @api_router.get("/files/{path:path}")
 async def serve_file(path: str):
     if not path.startswith(f"{APP_NAME}/"):

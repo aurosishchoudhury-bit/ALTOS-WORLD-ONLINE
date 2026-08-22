@@ -249,6 +249,33 @@ export const api = {
   async lookupOrders(phone: string): Promise<any[]> {
     return handle(await fetch(`${API}/orders/lookup?phone=${encodeURIComponent(phone)}`));
   },
+  async listPosts(): Promise<any[]> {
+    return handle(await fetch(`${API}/posts`));
+  },
+  async getPost(id: string): Promise<any> {
+    return handle(await fetch(`${API}/posts/${id}`));
+  },
+  async createPost(data: any) {
+    return handle(
+      await fetch(`${API}/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async updatePost(id: string, data: any) {
+    return handle(
+      await fetch(`${API}/posts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
+  async deletePost(id: string) {
+    return handle(await fetch(`${API}/posts/${id}`, { method: "DELETE" }));
+  },
   async listCoupons(): Promise<any[]> {
     return handle(await fetch(`${API}/coupons`));
   },

@@ -130,6 +130,18 @@ export default function Storefront() {
         <Feather name="chevron-right" size={17} color={colors.muted} />
       </Pressable>
 
+      <Pressable
+        testID="home-blogs"
+        onPress={() => router.push("/blogs")}
+        style={styles.diseaseBtn}
+      >
+        <Feather name="film" size={17} color={colors.brand} />
+        <AppText variant="semibold" style={styles.diseaseBtnText}>
+          Blogs & Vlogs
+        </AppText>
+        <Feather name="chevron-right" size={17} color={colors.muted} />
+      </Pressable>
+
       <View style={styles.loginWrap}>
         {verified ? (
           <View style={[styles.loginBox, styles.loginBoxVerified]} testID="altos-verified-box">

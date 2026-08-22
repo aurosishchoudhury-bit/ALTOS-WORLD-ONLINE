@@ -22,7 +22,9 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.emergent.productstoreapp.roszto",
-      "permissions": ["android.permission.READ_MEDIA_IMAGES"]
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,7 +41,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#FDFDF9"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

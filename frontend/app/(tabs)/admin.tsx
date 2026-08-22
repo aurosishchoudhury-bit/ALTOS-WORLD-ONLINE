@@ -335,6 +335,17 @@ export default function Admin() {
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               </Pressable>
               <Pressable
+                testID="manage-posts"
+                onPress={() => router.push("/admin/posts")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="film" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  Blogs & Vlogs — publish posts & videos
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+              <Pressable
                 testID="manage-settings"
                 onPress={() => router.push("/admin/settings")}
                 style={styles.manageDiseases}
