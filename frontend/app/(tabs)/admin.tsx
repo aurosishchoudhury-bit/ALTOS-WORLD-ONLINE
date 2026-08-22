@@ -174,6 +174,19 @@ export default function Admin() {
     }
   };
 
+  const onBvDone = async (order: any) => {
+    setStatusUpdating(order.id);
+    try {
+      const updated = await api.markInstantBVDone(order.id);
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+      toast.show("BV marked as generated");
+    } catch {
+      toast.show("Could not update BV status");
+    } finally {
+      setStatusUpdating(null);
+    }
+  };
+
   const onWhatsApp = (order: any) => {
     const shippedLike = order.status === "shipped" || order.status === "delivered";
     const text = shippedLike ? shippingUpdateMessage(order) : orderConfirmationMessage(order);
@@ -488,11 +501,30 @@ export default function Admin() {
                   </View>
                 </View>
 
-                {item.instant_bv_requested && (
+                {item.instant_bv_requested && !item.instant_bv_processed && (
                   <View style={styles.instantBvBadge} testID={`instant-bv-badge-${item.id}`}>
                     <Feather name="zap" size={13} color="#8A6D00" />
                     <AppText variant="semibold" style={styles.instantBvText}>
-                      Instant BV requested — generate BV now
+                      Instant BV requested
+                    </AppText>
+                    <Pressable
+                      testID={`bv-done-${item.id}`}
+                      onPress={() => onBvDone(item)}
+                      disabled={statusUpdating === item.id}
+                      style={styles.bvDoneBtn}
+                      hitSlop={6}
+                    >
+                      <AppText variant="semibold" color={colors.onBrand} style={styles.bvDoneText}>
+                        {statusUpdating === item.id ? "Saving…" : "BV Done"}
+                      </AppText>
+                    </Pressable>
+                  </View>
+                )}
+                {item.instant_bv_requested && item.instant_bv_processed && (
+                  <View style={styles.bvProcessedNote} testID={`bv-processed-${item.id}`}>
+                    <Feather name="check-circle" size={13} color={colors.success} />
+                    <AppText variant="semibold" color={colors.success} style={styles.bvProcessedText}>
+                      Instant BV generated
                     </AppText>
                   </View>
                 )}
@@ -734,6 +766,22 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   instantBvText: { fontSize: 12, color: "#8A6D00" },
+  bvDoneBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+    marginLeft: spacing.sm,
+  },
+  bvDoneText: { fontSize: 11, letterSpacing: 0.3 },
+  bvProcessedNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    alignSelf: "flex-start",
+  },
+  bvProcessedText: { fontSize: 12 },
   orderRow: {
     flexDirection: "row",
     alignItems: "flex-start",
