@@ -842,11 +842,30 @@ async def cancel_order(order_id: str, payload: CancelOrderRequest):
         raise HTTPException(400, "This order has already shipped and cannot be cancelled")
     if order.get("status") == "cancelled":
         raise HTTPException(400, "This order is already cancelled")
+    if order.get("instant_bv_requested"):
+        raise HTTPException(
+            400,
+            "Instant BV generation was requested for this order, so it can no longer be cancelled.",
+        )
     await db.orders.update_one(
         {"id": order_id},
         {"$set": {"status": "cancelled", "cancelled_at": now_iso()}},
     )
     return {"ok": True, "status": "cancelled"}
+
+
+@api_router.post("/orders/{order_id}/instant-bv")
+async def request_instant_bv(order_id: str):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if not order.get("altos_verified"):
+        raise HTTPException(400, "Instant BV is only available for Altos ID holder orders")
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"instant_bv_requested": True, "instant_bv_requested_at": now_iso()}},
+    )
+    return {"ok": True}
 
 
 
@@ -877,6 +896,7 @@ async def lookup_orders(phone: str):
             "awb": o.get("awb"),
             "courier_name": o.get("courier_name"),
             "tracking_url": o.get("tracking_url"),
+            "instant_bv_requested": bool(o.get("instant_bv_requested")),
         })
     return out
 

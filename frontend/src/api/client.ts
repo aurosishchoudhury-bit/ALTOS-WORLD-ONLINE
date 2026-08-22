@@ -126,6 +126,9 @@ export const api = {
   async getOrder(orderId: string) {
     return handle(await fetch(`${API}/orders/${orderId}`));
   },
+  async requestInstantBV(orderId: string) {
+    return handle(await fetch(`${API}/orders/${orderId}/instant-bv`, { method: "POST" }));
+  },
   async listOrders(): Promise<any[]> {
     return handle(await fetch(`${API}/orders`));
   },

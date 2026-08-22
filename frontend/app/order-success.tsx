@@ -111,7 +111,10 @@ export default function OrderSuccess() {
 
           <Pressable
             testID="bv-option-instant"
-            onPress={() => openWhatsApp(bvMessage, STORE_WHATSAPP)}
+            onPress={() => {
+              if (order_id) api.requestInstantBV(order_id).catch(() => {});
+              openWhatsApp(bvMessage, STORE_WHATSAPP);
+            }}
             style={styles.bvOptionInstant}
           >
             <View style={[styles.bvBadge, styles.bvBadgeGreen]}>
@@ -124,7 +127,8 @@ export default function OrderSuccess() {
                 For instant BV generation, click here
               </AppText>
               <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.bvInstantSub}>
-                Sends us a WhatsApp message to generate your BV right away
+                Sends us a WhatsApp message to generate your BV right away. Note: once instant BV
+                is requested, this order cannot be cancelled.
               </AppText>
             </View>
             <Feather name="message-circle" size={20} color="#25D366" />

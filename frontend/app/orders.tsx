@@ -151,7 +151,7 @@ export default function OrderLookup() {
                     <Feather name="external-link" size={14} color={colors.muted} />
                   </Pressable>
                 )}
-                {item.status === "paid" && (
+                {item.status === "paid" && !item.instant_bv_requested && (
                   <Pressable
                     testID={`cancel-${item.id}`}
                     onPress={() => cancelOrder(item)}
@@ -162,6 +162,14 @@ export default function OrderLookup() {
                       Cancel order
                     </AppText>
                   </Pressable>
+                )}
+                {item.status === "paid" && item.instant_bv_requested && (
+                  <View style={styles.bvLockNote} testID={`bv-lock-${item.id}`}>
+                    <Feather name="lock" size={13} color={colors.muted} />
+                    <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.bvLockText}>
+                      Instant BV requested — this order cannot be cancelled
+                    </AppText>
+                  </View>
                 )}
               </View>
             )}
@@ -228,4 +236,15 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
   },
   cancelText: { fontSize: 13 },
+  bvLockNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  bvLockText: { flex: 1, fontSize: 12, lineHeight: 16 },
 });
