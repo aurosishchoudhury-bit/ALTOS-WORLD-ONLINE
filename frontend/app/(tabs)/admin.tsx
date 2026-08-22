@@ -488,6 +488,15 @@ export default function Admin() {
                   </View>
                 </View>
 
+                {item.instant_bv_requested && (
+                  <View style={styles.instantBvBadge} testID={`instant-bv-badge-${item.id}`}>
+                    <Feather name="zap" size={13} color="#8A6D00" />
+                    <AppText variant="semibold" style={styles.instantBvText}>
+                      Instant BV requested — generate BV now
+                    </AppText>
+                  </View>
+                )}
+
                 <View style={styles.orderRow}>
                   <Feather name="phone" size={13} color={colors.muted} />
                   <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.orderMetaText}>
@@ -713,6 +722,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   statusText: { fontSize: 11, letterSpacing: 0.4 },
+  instantBvBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "#FFF4D6",
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    alignSelf: "flex-start",
+  },
+  instantBvText: { fontSize: 12, color: "#8A6D00" },
   orderRow: {
     flexDirection: "row",
     alignItems: "flex-start",
