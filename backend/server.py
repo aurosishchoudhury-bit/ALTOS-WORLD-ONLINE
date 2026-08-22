@@ -827,6 +827,29 @@ async def update_settings(payload: SettingsIn):
 
 
 # ---------------- Customer order lookup by mobile ----------------
+class CancelOrderRequest(BaseModel):
+    phone: str = Field(min_length=6, max_length=20)
+
+
+@api_router.post("/orders/{order_id}/cancel")
+async def cancel_order(order_id: str, payload: CancelOrderRequest):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if _norm_phone(payload.phone) != _norm_phone(order.get("customer", {}).get("phone", "")):
+        raise HTTPException(403, "Mobile number does not match this order")
+    if order.get("status") in ("shipped", "delivered"):
+        raise HTTPException(400, "This order has already shipped and cannot be cancelled")
+    if order.get("status") == "cancelled":
+        raise HTTPException(400, "This order is already cancelled")
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"status": "cancelled", "cancelled_at": now_iso()}},
+    )
+    return {"ok": True, "status": "cancelled"}
+
+
+
 @api_router.get("/orders/lookup")
 async def lookup_orders(phone: str):
     norm = _norm_phone(phone)

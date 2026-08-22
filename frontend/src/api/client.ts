@@ -249,6 +249,15 @@ export const api = {
   async lookupOrders(phone: string): Promise<any[]> {
     return handle(await fetch(`${API}/orders/lookup?phone=${encodeURIComponent(phone)}`));
   },
+  async cancelOrder(orderId: string, phone: string) {
+    return handle(
+      await fetch(`${API}/orders/${orderId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      }),
+    );
+  },
   async listPosts(): Promise<any[]> {
     return handle(await fetch(`${API}/posts`));
   },

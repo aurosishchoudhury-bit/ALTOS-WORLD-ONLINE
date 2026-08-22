@@ -85,18 +85,44 @@ export default function Storefront() {
     toast.show(`${p.name} added to cart`);
   };
 
-  const chips = ["All", ...categories];
-
   const query = search.trim().toLowerCase();
-  const visible = query
+  const searchResults = query
     ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query),
       )
-    : products;
+    : [];
+  // Grid shows: search results, or the selected category. On "All" (no search) we show category rows instead.
+  const visible = query ? searchResults : active === "All" ? [] : products;
 
   const bestsellers = !query && active === "All" ? products.filter((p) => p.bestseller) : [];
+
+  const MiniCard = ({ p, prefix }: { p: Product; prefix: string }) => {
+    const info = getPriceInfo(p, verified);
+    return (
+      <Pressable
+        testID={`${prefix}-${p.id}`}
+        onPress={() => router.push(`/product/${p.id}`)}
+        style={styles.bsCard}
+      >
+        <Image source={{ uri: resolveImageUri(p.image) }} style={styles.bsImage} contentFit="cover" />
+        <AppText variant="medium" numberOfLines={2} style={styles.bsName}>
+          {p.name}
+        </AppText>
+        <View style={styles.bsPriceRow}>
+          <AppText variant="semibold" style={styles.bsPrice}>
+            {formatINR(info.unit)}
+          </AppText>
+          {info.compareAt !== null && (
+            <AppText variant="body" color={colors.muted} style={styles.bsMrp}>
+              {formatINR(info.compareAt)}
+            </AppText>
+          )}
+        </View>
+      </Pressable>
+    );
+  };
 
   const Header = (
     <View>
@@ -220,32 +246,19 @@ export default function Storefront() {
         </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipRow}
-        contentContainerStyle={styles.chipRowContent}
-      >
-        {chips.map((cat) => {
-          const isActive = cat === active;
-          return (
-            <Pressable
-              key={cat}
-              testID={`category-chip-${cat}`}
-              onPress={() => onSelectCategory(cat)}
-              style={[styles.chip, isActive && styles.chipActive]}
-            >
-              <AppText
-                variant="medium"
-                color={isActive ? colors.onBrand : colors.onSurface}
-                style={styles.chipText}
-              >
-                {cat}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {active !== "All" && !query && (
+        <View style={styles.catHeaderBar} testID="active-category-bar">
+          <AppText variant="displaySemiBold" style={styles.catTitle}>
+            {active}
+          </AppText>
+          <Pressable testID="back-to-all" onPress={() => onSelectCategory("All")} style={styles.viewAll}>
+            <Feather name="grid" size={14} color={colors.brand} />
+            <AppText variant="semibold" color={colors.brand} style={styles.viewAllText}>
+              All categories
+            </AppText>
+          </Pressable>
+        </View>
+      )}
 
       {bestsellers.length > 0 && (
         <View style={styles.bsSection} testID="bestsellers-row">
@@ -289,6 +302,41 @@ export default function Storefront() {
           </ScrollView>
         </View>
       )}
+
+      {!query && active === "All" &&
+        categories.map((cat) => {
+          const items = products.filter((p) => p.category === cat);
+          if (items.length === 0) return null;
+          return (
+            <View key={cat} style={styles.bsSection} testID={`cat-row-${cat}`}>
+              <View style={styles.bsHeader}>
+                <AppText variant="displaySemiBold" style={styles.catTitle}>
+                  {cat}
+                </AppText>
+                <Pressable
+                  testID={`view-all-${cat}`}
+                  onPress={() => onSelectCategory(cat)}
+                  style={styles.viewAll}
+                  hitSlop={8}
+                >
+                  <AppText variant="semibold" color={colors.brand} style={styles.viewAllText}>
+                    View all
+                  </AppText>
+                  <Feather name="chevron-right" size={14} color={colors.brand} />
+                </Pressable>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.bsRowContent}
+              >
+                {items.slice(0, 10).map((p) => (
+                  <MiniCard key={p.id} p={p} prefix={`cat-${cat}`} />
+                ))}
+              </ScrollView>
+            </View>
+          );
+        })}
     </View>
   );
 
@@ -377,7 +425,7 @@ export default function Storefront() {
                   </AppText>
                 </Pressable>
               </>
-            ) : (
+            ) : active === "All" ? null : (
               <>
                 <Feather name="feather" size={28} color={colors.muted} />
                 <AppText variant="displayMedium" style={styles.emptyTitle}>
@@ -486,6 +534,16 @@ const styles = StyleSheet.create({
   bsTitle: {
     fontSize: 18,
   },
+  catTitle: { fontSize: 18, fontWeight: "700" },
+  catHeaderBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  viewAll: { flexDirection: "row", alignItems: "center", gap: 2, marginLeft: "auto" },
+  viewAllText: { fontSize: 13 },
   bsRowContent: {
     paddingHorizontal: spacing.lg,
     gap: spacing.md,

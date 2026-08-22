@@ -1,11 +1,11 @@
 export const colors = {
-  surface: "#FDFDF7",
+  surface: "#FFFFFF",
   onSurface: "#22301F",
   surfaceSecondary: "#F1F7EC",
   onSurfaceSecondary: "#4A5A48",
   surfaceTertiary: "#E4EFDD",
   surfaceInverse: "#22301F",
-  onSurfaceInverse: "#FDFDF7",
+  onSurfaceInverse: "#FFFFFF",
   brand: "#3E8E4C",
   brandSecondary: "#6FBF7B",
   brandTertiary: "#DCF2DE",

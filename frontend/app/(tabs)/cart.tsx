@@ -11,7 +11,7 @@ import QuantityStepper from "@/src/components/QuantityStepper";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { resolveImageUri, api } from "@/src/api/client";
-import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight, minPurchaseFor } from "@/src/utils/pricing";
+import { getPriceInfo, maxQtyFor, isHeavyItem, formatWeight, minPurchaseFor, cartSavings } from "@/src/utils/pricing";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
 export default function CartScreen() {
@@ -31,6 +31,7 @@ export default function CartScreen() {
 
   const belowMin = subtotal < minPurchase;
   const shortfall = Math.max(0, minPurchase - subtotal);
+  const savings = cartSavings(lines, verified);
 
   if (lines.length === 0) {
     return (
@@ -144,6 +145,14 @@ export default function CartScreen() {
             </AppText>
           </View>
         )}
+        {savings > 0 && (
+          <View style={styles.savingsBanner} testID="cart-total-savings">
+            <Feather name="tag" size={14} color={colors.success} />
+            <AppText variant="semibold" color={colors.success} style={styles.savingsText}>
+              You&apos;re saving {formatINR(savings)} on this order!
+            </AppText>
+          </View>
+        )}
         <View style={[styles.summaryRow, styles.totalRow]}>
           <AppText variant="displaySemiBold" style={styles.totalLabel}>
             Total
@@ -244,6 +253,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
+  savingsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: "#EAF7EF",
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  savingsText: { fontSize: 13 },
   totalLabel: { fontSize: 24 },
   minNotice: {
     flexDirection: "row",

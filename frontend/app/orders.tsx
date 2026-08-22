@@ -16,12 +16,14 @@ const STATUS_LABEL: Record<string, string> = {
   paid: "Confirmed",
   shipped: "Shipped",
   delivered: "Delivered",
+  cancelled: "Cancelled",
 };
 
 const STATUS_COLOR: Record<string, string> = {
   paid: "#3E8E4C",
   shipped: "#E8963E",
   delivered: "#2E9E5B",
+  cancelled: "#D9534F",
 };
 
 const orderCode = (id: string) => id.slice(0, 8).toUpperCase();
@@ -48,6 +50,18 @@ export default function OrderLookup() {
       setOrders([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cancelOrder = async (o: any) => {
+    try {
+      await api.cancelOrder(o.id, phone.trim());
+      setOrders((prev) =>
+        (prev || []).map((x) => (x.id === o.id ? { ...x, status: "cancelled" } : x)),
+      );
+      toast.show("Order cancelled. Any payment will be refunded by the store.");
+    } catch (e: any) {
+      toast.show(e?.message || "Could not cancel order");
     }
   };
 
@@ -137,6 +151,18 @@ export default function OrderLookup() {
                     <Feather name="external-link" size={14} color={colors.muted} />
                   </Pressable>
                 )}
+                {item.status === "paid" && (
+                  <Pressable
+                    testID={`cancel-${item.id}`}
+                    onPress={() => cancelOrder(item)}
+                    style={styles.cancelBtn}
+                  >
+                    <Feather name="x-circle" size={15} color={colors.error} />
+                    <AppText variant="semibold" color={colors.error} style={styles.cancelText}>
+                      Cancel order
+                    </AppText>
+                  </Pressable>
+                )}
               </View>
             )}
           />
@@ -190,4 +216,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   trackText: { flex: 1, fontSize: 13, color: colors.brand },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  cancelText: { fontSize: 13 },
 });

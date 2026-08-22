@@ -12,7 +12,7 @@ import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
-import { getPriceInfo, formatWeight } from "@/src/utils/pricing";
+import { getPriceInfo, formatWeight, cartSavings } from "@/src/utils/pricing";
 import { api } from "@/src/api/client";
 import { colors, spacing, formatINR } from "@/src/theme/theme";
 
@@ -297,6 +297,17 @@ export default function Checkout() {
             {formatINR(billing)}
           </AppText>
         </View>
+        {(() => {
+          const saved = cartSavings(lines, verified) + (coupon ? coupon.discount : 0);
+          return saved > 0 ? (
+            <View style={styles.savingsBanner} testID="checkout-total-savings">
+              <Feather name="tag" size={14} color={colors.success} />
+              <AppText variant="semibold" color={colors.success} style={styles.savingsText}>
+                Total savings on this order: {formatINR(saved)}
+              </AppText>
+            </View>
+          ) : null;
+        })()}
 
         {!verified && (
           <View style={styles.payModeWrap}>
@@ -489,6 +500,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
     marginVertical: spacing.xl,
   },
+  savingsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: "#EAF7EF",
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  savingsText: { fontSize: 13 },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",

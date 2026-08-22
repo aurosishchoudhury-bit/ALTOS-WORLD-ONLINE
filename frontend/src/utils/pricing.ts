@@ -27,6 +27,17 @@ export function getPriceInfo(product: Product, altosVerified: boolean): PriceInf
 export const discountPercent = (info: PriceInfo): number =>
   info.compareAt ? Math.round(((info.compareAt - info.unit) / info.compareAt) * 100) : 0;
 
+/** Total amount saved vs MRP across cart lines (0 when nothing is discounted). */
+export function cartSavings(
+  lines: { product: Product; quantity: number }[],
+  altosVerified: boolean
+): number {
+  return lines.reduce((sum, l) => {
+    const info = getPriceInfo(l.product, altosVerified);
+    return sum + (info.compareAt ? (info.compareAt - info.unit) * l.quantity : 0);
+  }, 0);
+}
+
 // ---- Minimum purchase (cart subtotal) ----
 export const MIN_PURCHASE_ALTOS = 599; // verified Altos ID holders
 export const MIN_PURCHASE_REGULAR = 399; // non-Altos customers
