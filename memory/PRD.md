@@ -7,7 +7,7 @@ Mobile app (Expo + FastAPI + MongoDB) for online purchase of herbal supplements 
 
 ## Completed Features
 - Product catalog with categories, search, bestsellers row. Categories (June 2026): Supplements, Skincare, Hair Care, Home Care, Personal Care, Agriculture/Veterinary (BASE_CATEGORIES in server.py + CATEGORY_OPTIONS in admin/product-form.tsx).
-- Dynamic pricing: verified Altos ID holders see DP price (`price`) + BV; guests see `offer_price`. MRP strikethrough shown.
+- Dynamic pricing: verified Altos ID holders see DP price (`price`) + BV; guests see `offer_price`. MRP strikethrough shown. Admin pricing input (June 2026): non-Altos selling price is entered as a DISCOUNT % OFF MRP in product-form (live preview shows computed price); offer_price = round(mrp × (1 − pct/100)) computed client-side, backend schema unchanged. Editing derives the % back from stored offer_price/mrp.
 - Altos ID WebView login with auto-logout session (AltosAuthContext)
 - BV (Business Volume) totals + gated WhatsApp Instant BV button
 - Weight-based shipping calculation, max-qty constraints for heavy items

@@ -94,7 +94,7 @@ export default function ProductForm() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [mrp, setMrp] = useState("");
-  const [offerPrice, setOfferPrice] = useState("");
+  const [discountPct, setDiscountPct] = useState("");
   const [weight, setWeight] = useState("");
   const [weightGrams, setWeightGrams] = useState("");
   const [dosage, setDosage] = useState("");
@@ -139,7 +139,11 @@ export default function ProductForm() {
           setDescription(p.description);
           setPrice(String(p.price));
           setMrp(p.mrp ? String(p.mrp) : "");
-          setOfferPrice(p.offer_price ? String(p.offer_price) : "");
+          setDiscountPct(
+            p.offer_price && p.mrp
+              ? String(Math.round((1 - p.offer_price / p.mrp) * 100))
+              : "",
+          );
           setWeight(p.weight || "");
           setWeightGrams(p.weight_grams ? String(p.weight_grams) : "");
           setDosage((p as any).dosage || "");
@@ -163,12 +167,16 @@ export default function ProductForm() {
     if (mrp.trim() && (isNaN(mrpNum) || mrpNum < priceNum)) {
       return toast.show("MRP must be higher than the selling price");
     }
-    const offerNum = parseFloat(offerPrice);
-    if (offerPrice.trim()) {
-      if (isNaN(offerNum) || offerNum <= 0) return toast.show("Enter a valid offer price");
-      if (!isNaN(mrpNum) && offerNum > mrpNum) {
-        return toast.show("Offer price cannot be higher than MRP");
+    const pctNum = parseFloat(discountPct);
+    let computedOffer = 0;
+    if (discountPct.trim()) {
+      if (isNaN(pctNum) || pctNum < 0 || pctNum >= 100) {
+        return toast.show("Discount % must be between 0 and 99");
       }
+      if (isNaN(mrpNum) || mrpNum <= 0) {
+        return toast.show("Enter the MRP first to apply a % discount");
+      }
+      computedOffer = Math.round(mrpNum * (1 - pctNum / 100));
     }
     const stockNum = parseInt(stock, 10);
     const gramsNum = parseFloat(weightGrams);
@@ -181,7 +189,7 @@ export default function ProductForm() {
       description: description.trim(),
       price: priceNum,
       mrp: isNaN(mrpNum) ? 0 : mrpNum,
-      offer_price: offerPrice.trim() && !isNaN(offerNum) ? offerNum : 0,
+      offer_price: computedOffer,
       weight: weight.trim(),
       weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
       dosage: dosage.trim(),
@@ -373,16 +381,22 @@ export default function ProductForm() {
         </View>
 
         <FormField
-          testID="form-offer-price"
-          label="Selling price for non-Altos customers (₹, optional)"
-          value={offerPrice}
-          onChangeText={setOfferPrice}
-          placeholder="Leave empty to charge MRP"
+          testID="form-discount-pct"
+          label="Discount % off MRP for non-Altos customers (optional)"
+          value={discountPct}
+          onChangeText={setDiscountPct}
+          placeholder="e.g. 10 (leave empty to charge MRP)"
           keyboardType="decimal-pad"
         />
+        {!!discountPct.trim() && !isNaN(parseFloat(discountPct)) && !isNaN(parseFloat(mrp)) && parseFloat(mrp) > 0 && (
+          <AppText variant="semibold" color={colors.brand} style={styles.hint} testID="offer-preview">
+            Selling price: ₹{Math.round(parseFloat(mrp) * (1 - parseFloat(discountPct) / 100))} (MRP ₹
+            {parseFloat(mrp)} − {discountPct}%)
+          </AppText>
+        )}
         <AppText variant="body" color={colors.muted} style={styles.hint}>
-          DP price is shown only to verified Altos ID holders. Non-Altos customers see MRP, or
-          this selling price with a discount badge when set.
+          DP price is shown only to verified Altos ID holders. Non-Altos customers see MRP, or the
+          discounted selling price with a discount badge when a % is set.
         </AppText>
 
         <View style={styles.priceRow}>
