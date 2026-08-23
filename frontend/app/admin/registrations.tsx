@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import AppText from "@/src/components/AppText";
 import { useToast } from "@/src/components/Toast";
 import { api, resolveImageUri } from "@/src/api/client";
+import { openWhatsApp } from "@/src/utils/whatsapp";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const GUARDIAN_LABEL: Record<string, string> = { S: "Son of", D: "Daughter of", W: "Wife of" };
@@ -33,6 +34,15 @@ export default function ManageRegistrations() {
   const openPdf = (r: any) => {
     if (!r.pdf_url) return toast.show("PDF not available for this entry");
     Linking.openURL(resolveImageUri(r.pdf_url)).catch(() => toast.show("Could not open PDF"));
+  };
+
+  const followUp = (r: any) => {
+    const interest = (r.interested_in || "products") === "business" ? "business opportunity" : "products";
+    openWhatsApp(
+      `Hello ${r.title} ${r.name}, thank you for registering as a Direct Seller with Altos World Online Store! ` +
+        `We noticed you're interested in our ${interest}. How can we help you get started?`,
+      r.mobile,
+    );
   };
 
   const remove = async (r: any) => {
@@ -131,6 +141,9 @@ export default function ManageRegistrations() {
                 </AppText>
               </View>
             </View>
+            <Pressable testID={`whatsapp-reg-${item.id}`} onPress={() => followUp(item)} hitSlop={8} style={styles.iconBtn}>
+              <Feather name="message-circle" size={18} color="#25D366" />
+            </Pressable>
             <Pressable testID={`pdf-${item.id}`} onPress={() => openPdf(item)} hitSlop={8} style={styles.iconBtn}>
               <Feather name="download" size={18} color={colors.brand} />
             </Pressable>
