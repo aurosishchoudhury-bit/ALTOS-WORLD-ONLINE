@@ -11,11 +11,18 @@ import { colors, spacing, radius } from "@/src/theme/theme";
 
 const GUARDIAN_LABEL: Record<string, string> = { S: "Son of", D: "Daughter of", W: "Wife of" };
 
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "products", label: "Products" },
+  { key: "business", label: "Business" },
+];
+
 export default function ManageRegistrations() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const [items, setItems] = useState<any[]>([]);
+  const [filter, setFilter] = useState("all");
 
   const load = useCallback(() => {
     api.listRegistrations().then(setItems).catch(() => {});
@@ -38,6 +45,9 @@ export default function ManageRegistrations() {
     }
   };
 
+  const interestOf = (r: any) => r.interested_in || "products";
+  const filtered = filter === "all" ? items : items.filter((r) => interestOf(r) === filter);
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
@@ -50,13 +60,39 @@ export default function ManageRegistrations() {
         <View style={styles.backBtn} />
       </View>
 
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => {
+          const on = filter === f.key;
+          const count =
+            f.key === "all" ? items.length : items.filter((r) => interestOf(r) === f.key).length;
+          return (
+            <Pressable
+              key={f.key}
+              testID={`filter-${f.key}`}
+              onPress={() => setFilter(f.key)}
+              style={[styles.filterChip, on && styles.filterChipOn]}
+            >
+              <AppText
+                variant={on ? "semibold" : "body"}
+                color={on ? "#fff" : colors.onSurface}
+                style={styles.filterText}
+              >
+                {f.label} ({count})
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <FlatList
-        data={items}
+        data={filtered}
         keyExtractor={(r) => r.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }}
         ListEmptyComponent={
           <AppText variant="body" color={colors.muted} style={styles.empty}>
-            No registrations yet. Submissions from the customer Register form will appear here.
+            {filter === "all"
+              ? "No registrations yet. Submissions from the customer Register form will appear here."
+              : `No registrations interested in ${filter} yet.`}
           </AppText>
         }
         renderItem={({ item }) => (
@@ -74,6 +110,26 @@ export default function ManageRegistrations() {
               <AppText variant="body" color={colors.muted} style={styles.meta}>
                 Nominee: {item.nominee_name} ({item.nominee_relation})
               </AppText>
+              <View
+                style={[
+                  styles.interestChip,
+                  interestOf(item) === "business" && styles.interestChipBusiness,
+                ]}
+                testID={`interest-${item.id}`}
+              >
+                <Feather
+                  name={interestOf(item) === "business" ? "briefcase" : "shopping-bag"}
+                  size={11}
+                  color={interestOf(item) === "business" ? "#8A6D00" : colors.brand}
+                />
+                <AppText
+                  variant="semibold"
+                  color={interestOf(item) === "business" ? "#8A6D00" : colors.brand}
+                  style={styles.interestText}
+                >
+                  {interestOf(item) === "business" ? "Business" : "Products"}
+                </AppText>
+              </View>
             </View>
             <Pressable testID={`pdf-${item.id}`} onPress={() => openPdf(item)} hitSlop={8} style={styles.iconBtn}>
               <Feather name="download" size={18} color={colors.brand} />
@@ -101,6 +157,35 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16 },
+  filterRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  filterChipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
+  filterText: { fontSize: 13 },
+  interestChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
+    marginTop: spacing.sm,
+  },
+  interestChipBusiness: { backgroundColor: "#FFF4D6" },
+  interestText: { fontSize: 11 },
   empty: { fontSize: 13, textAlign: "center", marginTop: spacing.xl },
   card: {
     flexDirection: "row",
