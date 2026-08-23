@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +14,6 @@ import { openWhatsApp, registrationMessage, STORE_WHATSAPP } from "@/src/utils/w
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const dateRe = /^\d{4}-\d{2}-\d{2}$/;
 
 const TITLES = ["Mr", "Mrs", "Ms", "Dr"];
 const GUARDIAN = [
@@ -22,6 +21,17 @@ const GUARDIAN = [
   { key: "D", label: "Daughter of" },
   { key: "W", label: "Wife of" },
 ];
+const INTERESTS = [
+  { key: "products", label: "1 · Products" },
+  { key: "business", label: "2 · Business" },
+];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 18 - 1940 + 1 }, (_, i) => String(CURRENT_YEAR - 18 - i));
 
 export default function Register() {
   const router = useRouter();
@@ -34,18 +44,26 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [guardianType, setGuardianType] = useState("S");
   const [guardianName, setGuardianName] = useState("");
-  const [dob, setDob] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobMonth, setDobMonth] = useState(""); // "1".."12"
+  const [dobYear, setDobYear] = useState("");
   const [address, setAddress] = useState("");
   const [nomineeName, setNomineeName] = useState("");
   const [nomineeRelation, setNomineeRelation] = useState("");
+  const [interestedIn, setInterestedIn] = useState("products");
   const [submitting, setSubmitting] = useState(false);
+
+  const dob =
+    dobDay && dobMonth && dobYear
+      ? `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`
+      : "";
 
   const validate = () => {
     if (!name.trim()) return "Please enter your full name";
     if (mobile.trim().length < 10) return "Please enter a valid 10-digit mobile number";
     if (!emailRe.test(email.trim())) return "Please enter a valid email";
     if (!guardianName.trim()) return "Please enter the S/D/W of name";
-    if (!dateRe.test(dob.trim())) return "Please enter date of birth as YYYY-MM-DD";
+    if (!dob) return "Please select your date of birth";
     if (address.trim().length < 5) return "Please enter your full address";
     if (!nomineeName.trim()) return "Please enter the nominee name";
     if (!nomineeRelation.trim()) return "Please enter relation with nominee";
@@ -66,10 +84,11 @@ export default function Register() {
       email: email.trim(),
       guardian_type: guardianType,
       guardian_name: guardianName.trim(),
-      dob: dob.trim(),
+      dob,
       address: address.trim(),
       nominee_name: nomineeName.trim(),
       nominee_relation: nomineeRelation.trim(),
+      interested_in: interestedIn,
     };
     try {
       await api.createRegistration(payload);
@@ -117,6 +136,69 @@ export default function Register() {
     </View>
   );
 
+  const Dropdown = ({
+    label,
+    value,
+    display,
+    options,
+    onSelect,
+    testID,
+  }: {
+    label: string;
+    value: string;
+    display?: (v: string) => string;
+    options: string[];
+    onSelect: (v: string) => void;
+    testID: string;
+  }) => {
+    const [open, setOpen] = useState(false);
+    return (
+      <View style={{ flex: 1 }}>
+        <Pressable testID={testID} onPress={() => setOpen(true)} style={styles.dropdown}>
+          <AppText
+            variant={value ? "medium" : "body"}
+            color={value ? colors.onSurface : colors.muted}
+            style={styles.dropdownText}
+            numberOfLines={1}
+          >
+            {value ? (display ? display(value) : value) : label}
+          </AppText>
+          <Feather name="chevron-down" size={16} color={colors.muted} />
+        </Pressable>
+        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+          <Pressable style={styles.ddOverlay} onPress={() => setOpen(false)}>
+            <View style={styles.ddCard}>
+              <AppText variant="semibold" style={styles.ddTitle}>
+                {label}
+              </AppText>
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                {options.map((o) => (
+                  <Pressable
+                    key={o}
+                    testID={`${testID}-${o}`}
+                    onPress={() => {
+                      onSelect(o);
+                      setOpen(false);
+                    }}
+                    style={styles.ddRow}
+                  >
+                    <AppText
+                      variant={o === value ? "semibold" : "body"}
+                      color={o === value ? colors.brand : colors.onSurface}
+                    >
+                      {display ? display(o) : o}
+                    </AppText>
+                    {o === value && <Feather name="check" size={16} color={colors.brand} />}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Modal>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
@@ -158,10 +240,29 @@ export default function Register() {
         <Segment options={GUARDIAN} value={guardianType} onChange={setGuardianType} testID="guardian-segment" />
         <FormField testID="reg-guardian-name" label="S/D/W of (name)" value={guardianName} onChangeText={setGuardianName} placeholder="Father / Husband name" autoCapitalize="words" />
 
-        <FormField testID="reg-dob" label="Date of birth (YYYY-MM-DD)" value={dob} onChangeText={setDob} placeholder="1990-01-31" />
+        <AppText variant="semibold" style={styles.fieldLabel}>
+          Date of birth
+        </AppText>
+        <View style={styles.dobRow}>
+          <Dropdown label="Day" value={dobDay} options={DAYS} onSelect={setDobDay} testID="dob-day" />
+          <Dropdown
+            label="Month"
+            value={dobMonth}
+            options={MONTHS.map((_, i) => String(i + 1))}
+            display={(v) => MONTHS[parseInt(v, 10) - 1]}
+            onSelect={setDobMonth}
+            testID="dob-month"
+          />
+          <Dropdown label="Year" value={dobYear} options={YEARS} onSelect={setDobYear} testID="dob-year" />
+        </View>
         <FormField testID="reg-address" label="Address" value={address} onChangeText={setAddress} placeholder="Flat, street, city, PIN" multiline numberOfLines={3} style={styles.addressInput} />
         <FormField testID="reg-nominee-name" label="Nominee name" value={nomineeName} onChangeText={setNomineeName} placeholder="Nominee full name" autoCapitalize="words" />
         <FormField testID="reg-nominee-relation" label="Relation with nominee" value={nomineeRelation} onChangeText={setNomineeRelation} placeholder="e.g. Wife, Son, Father" autoCapitalize="words" />
+
+        <AppText variant="semibold" style={styles.fieldLabel}>
+          Interested in
+        </AppText>
+        <Segment options={INTERESTS} value={interestedIn} onChange={setInterestedIn} testID="interest-segment" />
 
         <View style={styles.disclaimer}>
           <Feather name="info" size={16} color={colors.brand} />
@@ -205,6 +306,43 @@ const styles = StyleSheet.create({
   },
   segmentOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   segmentText: { fontSize: 13 },
+  dobRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+  dropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+  },
+  dropdownText: { fontSize: 14, flex: 1 },
+  ddOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(20,24,20,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+  },
+  ddCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  ddTitle: { fontSize: 15, marginBottom: spacing.sm },
+  ddRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
   addressInput: { minHeight: 90, textAlignVertical: "top" },
   disclaimer: {
     flexDirection: "row",

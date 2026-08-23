@@ -52,6 +52,7 @@ export function registrationMessage(reg: {
   address: string;
   nominee_name: string;
   nominee_relation: string;
+  interested_in?: string;
 }): string {
   const guardian = GUARDIAN_LABEL[reg.guardian_type] || "S/D/W of";
   return (
@@ -63,7 +64,8 @@ export function registrationMessage(reg: {
     `${guardian}: ${reg.guardian_name}\n` +
     `DOB: ${reg.dob}\n` +
     `Address: ${reg.address}\n` +
-    `Nominee: ${reg.nominee_name} (${reg.nominee_relation})\n\n` +
+    `Nominee: ${reg.nominee_name} (${reg.nominee_relation})\n` +
+    `Interested in: ${(reg.interested_in || "products") === "business" ? "Business" : "Products"}\n\n` +
     `Please generate the Altos ID & password and share with the applicant within 15 minutes.`
   );
 }

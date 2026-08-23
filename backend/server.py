@@ -687,6 +687,7 @@ class RegistrationIn(BaseModel):
     address: str = Field(min_length=5, max_length=600)
     nominee_name: str = Field(min_length=1, max_length=120)
     nominee_relation: str = Field(min_length=1, max_length=60)
+    interested_in: str = Field(default="products", max_length=20)  # products | business
 
 
 class Registration(RegistrationIn):
@@ -730,6 +731,7 @@ def _build_registration_pdf(reg: dict) -> bytes:
         ("Address", reg.get("address", "")),
         ("Nominee Name", reg.get("nominee_name", "")),
         ("Relation with Nominee", reg.get("nominee_relation", "")),
+        ("Interested In", (reg.get("interested_in") or "products").capitalize()),
     ]
 
     label_w = 55
