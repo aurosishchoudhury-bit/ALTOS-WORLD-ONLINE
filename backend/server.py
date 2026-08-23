@@ -688,6 +688,10 @@ class RegistrationIn(BaseModel):
     nominee_name: str = Field(min_length=1, max_length=120)
     nominee_relation: str = Field(min_length=1, max_length=60)
     interested_in: str = Field(default="products", max_length=20)  # products | business
+    referral_id: str = Field(default="", max_length=60)
+    referral_name: str = Field(default="", max_length=120)
+    sponsor_id: str = Field(default="", max_length=60)
+    sponsor_name: str = Field(default="", max_length=120)
 
 
 class Registration(RegistrationIn):
@@ -733,6 +737,10 @@ def _build_registration_pdf(reg: dict) -> bytes:
         ("Relation with Nominee", reg.get("nominee_relation", "")),
         ("Interested In", (reg.get("interested_in") or "products").capitalize()),
     ]
+    if reg.get("referral_id") or reg.get("referral_name"):
+        rows.append(("Referral", f"{reg.get('referral_name', '')} ({reg.get('referral_id', '')})".strip()))
+    if reg.get("sponsor_id") or reg.get("sponsor_name"):
+        rows.append(("Sponsor", f"{reg.get('sponsor_name', '')} ({reg.get('sponsor_id', '')})".strip()))
 
     label_w = 55
     val_w = 125

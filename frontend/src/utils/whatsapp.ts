@@ -53,8 +53,20 @@ export function registrationMessage(reg: {
   nominee_name: string;
   nominee_relation: string;
   interested_in?: string;
+  referral_id?: string;
+  referral_name?: string;
+  sponsor_id?: string;
+  sponsor_name?: string;
 }): string {
   const guardian = GUARDIAN_LABEL[reg.guardian_type] || "S/D/W of";
+  const referral =
+    reg.referral_id || reg.referral_name
+      ? `Referral: ${reg.referral_name || "-"} (${reg.referral_id || "-"})\n`
+      : "";
+  const sponsor =
+    reg.sponsor_id || reg.sponsor_name
+      ? `Sponsor: ${reg.sponsor_name || "-"} (${reg.sponsor_id || "-"})\n`
+      : "";
   return (
     `*Altos World — New Direct Seller Registration*\n\n` +
     `Title: ${reg.title}\n` +
@@ -65,6 +77,8 @@ export function registrationMessage(reg: {
     `DOB: ${reg.dob}\n` +
     `Address: ${reg.address}\n` +
     `Nominee: ${reg.nominee_name} (${reg.nominee_relation})\n` +
+    referral +
+    sponsor +
     `Interested in: ${(reg.interested_in || "products") === "business" ? "Business" : "Products"}\n\n` +
     `Please generate the Altos ID & password and share with the applicant within 15 minutes.`
   );

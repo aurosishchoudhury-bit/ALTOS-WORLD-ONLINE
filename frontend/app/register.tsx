@@ -50,6 +50,10 @@ export default function Register() {
   const [address, setAddress] = useState("");
   const [nomineeName, setNomineeName] = useState("");
   const [nomineeRelation, setNomineeRelation] = useState("");
+  const [referralId, setReferralId] = useState("");
+  const [referralName, setReferralName] = useState("");
+  const [sponsorId, setSponsorId] = useState("");
+  const [sponsorName, setSponsorName] = useState("");
   const [interestedIn, setInterestedIn] = useState("products");
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,6 +92,10 @@ export default function Register() {
       address: address.trim(),
       nominee_name: nomineeName.trim(),
       nominee_relation: nomineeRelation.trim(),
+      referral_id: referralId.trim(),
+      referral_name: referralName.trim(),
+      sponsor_id: sponsorId.trim(),
+      sponsor_name: sponsorName.trim(),
       interested_in: interestedIn,
     };
     try {
@@ -259,6 +267,23 @@ export default function Register() {
         <FormField testID="reg-nominee-name" label="Nominee name" value={nomineeName} onChangeText={setNomineeName} placeholder="Nominee full name" autoCapitalize="words" />
         <FormField testID="reg-nominee-relation" label="Relation with nominee" value={nomineeRelation} onChangeText={setNomineeRelation} placeholder="e.g. Wife, Son, Father" autoCapitalize="words" />
 
+        <View style={styles.pairRow}>
+          <View style={{ flex: 1 }}>
+            <FormField testID="reg-referral-id" label="Referral ID (optional)" value={referralId} onChangeText={setReferralId} placeholder="Referral ID" autoCapitalize="characters" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField testID="reg-referral-name" label="Referral name (optional)" value={referralName} onChangeText={setReferralName} placeholder="Referral name" autoCapitalize="words" />
+          </View>
+        </View>
+        <View style={styles.pairRow}>
+          <View style={{ flex: 1 }}>
+            <FormField testID="reg-sponsor-id" label="Sponsor ID (optional)" value={sponsorId} onChangeText={setSponsorId} placeholder="Sponsor ID" autoCapitalize="characters" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField testID="reg-sponsor-name" label="Sponsor name (optional)" value={sponsorName} onChangeText={setSponsorName} placeholder="Sponsor name" autoCapitalize="words" />
+          </View>
+        </View>
+
         <AppText variant="semibold" style={styles.fieldLabel}>
           Interested in
         </AppText>
@@ -307,6 +332,7 @@ const styles = StyleSheet.create({
   segmentOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   segmentText: { fontSize: 13 },
   dobRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+  pairRow: { flexDirection: "row", gap: spacing.sm },
   dropdown: {
     flexDirection: "row",
     alignItems: "center",
