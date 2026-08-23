@@ -797,6 +797,21 @@ async def delete_registration(reg_id: str):
     return {"ok": True}
 
 
+class ContactedIn(BaseModel):
+    contacted: bool
+
+
+@api_router.post("/registrations/{reg_id}/contacted")
+async def set_registration_contacted(reg_id: str, payload: ContactedIn):
+    res = await db.registrations.update_one(
+        {"id": reg_id},
+        {"$set": {"contacted": payload.contacted, "contacted_at": now_iso() if payload.contacted else None}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Registration not found")
+    return {"ok": True, "contacted": payload.contacted}
+
+
 # ---------------- Store Settings (shipping + minimum order) ----------------
 class SettingsIn(BaseModel):
     shipping_mode: str = Field(default="weight")  # weight | flat

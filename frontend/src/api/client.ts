@@ -352,6 +352,15 @@ export const api = {
   async deleteRegistration(id: string) {
     return handle(await fetch(`${API}/registrations/${id}`, { method: "DELETE" }));
   },
+  async setRegistrationContacted(id: string, contacted: boolean) {
+    return handle(
+      await fetch(`${API}/registrations/${id}/contacted`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contacted }),
+      }),
+    );
+  },
   async reportMonths(): Promise<{ month: string; label: string; orders: number }[]> {
     return handle(await fetch(`${API}/reports/sales/available-months`));
   },

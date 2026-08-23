@@ -45,6 +45,17 @@ export default function ManageRegistrations() {
     );
   };
 
+  const toggleContacted = async (r: any) => {
+    const next = !r.contacted;
+    try {
+      await api.setRegistrationContacted(r.id, next);
+      setItems((prev) => prev.map((x) => (x.id === r.id ? { ...x, contacted: next } : x)));
+      toast.show(next ? "Marked as contacted" : "Marked as pending");
+    } catch {
+      toast.show("Could not update");
+    }
+  };
+
   const remove = async (r: any) => {
     try {
       await api.deleteRegistration(r.id);
@@ -140,6 +151,25 @@ export default function ManageRegistrations() {
                   {interestOf(item) === "business" ? "Business" : "Products"}
                 </AppText>
               </View>
+              <Pressable
+                testID={`contacted-toggle-${item.id}`}
+                onPress={() => toggleContacted(item)}
+                style={[styles.contactChip, item.contacted ? styles.contactChipDone : styles.contactChipPending]}
+                hitSlop={6}
+              >
+                <Feather
+                  name={item.contacted ? "check-circle" : "clock"}
+                  size={12}
+                  color={item.contacted ? colors.success : "#8A6D00"}
+                />
+                <AppText
+                  variant="semibold"
+                  color={item.contacted ? colors.success : "#8A6D00"}
+                  style={styles.contactText}
+                >
+                  {item.contacted ? "Contacted" : "Pending follow-up · tap when contacted"}
+                </AppText>
+              </Pressable>
             </View>
             <Pressable testID={`whatsapp-reg-${item.id}`} onPress={() => followUp(item)} hitSlop={8} style={styles.iconBtn}>
               <Feather name="message-circle" size={18} color="#25D366" />
@@ -199,6 +229,19 @@ const styles = StyleSheet.create({
   },
   interestChipBusiness: { backgroundColor: "#FFF4D6" },
   interestText: { fontSize: 11 },
+  contactChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    marginTop: spacing.sm,
+  },
+  contactChipDone: { backgroundColor: "#EAF7EF" },
+  contactChipPending: { backgroundColor: "#FFF4D6" },
+  contactText: { fontSize: 11 },
   empty: { fontSize: 13, textAlign: "center", marginTop: spacing.xl },
   card: {
     flexDirection: "row",
