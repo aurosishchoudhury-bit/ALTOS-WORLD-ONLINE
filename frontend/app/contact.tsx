@@ -1,13 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Pressable, StyleSheet, Linking } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import InfoPage from "@/src/components/InfoPage";
 import AppText from "@/src/components/AppText";
+import { api } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
-const PHONE = "+91 77354 54828";
-const EMAIL = "altosworldonline@gmail.com";
 const WHATSAPP_TEXT = "Hi Altos World! I have a question about my order.";
 
 function Row({
@@ -42,22 +41,36 @@ function Row({
 }
 
 export default function ContactUs() {
-  const phoneDigits = PHONE.replace(/\D/g, "");
+  const [page, setPage] = useState<any>({
+    intro:
+      "Questions about a product, your order or Altos ID pricing? Reach out any day between 9 AM and 8 PM.",
+    phone: "+91 77354 54828",
+    email: "altosworldonline@gmail.com",
+    address: "Altos World — Cuttack Super Zone\nCuttack, Odisha, India",
+  });
+
+  useEffect(() => {
+    api
+      .getPage("contact")
+      .then((p) => setPage((prev: any) => ({ ...prev, ...p })))
+      .catch(() => {});
+  }, []);
+
+  const phoneDigits = (page.phone || "").replace(/\D/g, "");
   return (
     <InfoPage title="Contact Us">
       <AppText variant="displaySemiBold" style={styles.heading}>
         We&rsquo;re here to help
       </AppText>
       <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.para}>
-        Questions about a product, your order or Altos ID pricing? Reach out any day between
-        9 AM and 8 PM.
+        {page.intro}
       </AppText>
 
       <Row
         testID="contact-whatsapp"
         icon="message-circle"
         label="WhatsApp"
-        value={PHONE}
+        value={page.phone}
         onPress={() =>
           Linking.openURL(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`).catch(() => {})
         }
@@ -66,21 +79,21 @@ export default function ContactUs() {
         testID="contact-phone"
         icon="phone"
         label="Call us"
-        value={PHONE}
+        value={page.phone}
         onPress={() => Linking.openURL(`tel:${phoneDigits}`).catch(() => {})}
       />
       <Row
         testID="contact-email"
         icon="mail"
         label="Email"
-        value={EMAIL}
-        onPress={() => Linking.openURL(`mailto:${EMAIL}`).catch(() => {})}
+        value={page.email}
+        onPress={() => Linking.openURL(`mailto:${page.email}`).catch(() => {})}
       />
 
       <View style={styles.addressCard}>
         <Feather name="map-pin" size={18} color={colors.brand} />
         <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.address}>
-          Altos World — Cuttack Super Zone{"\n"}Cuttack, Odisha, India
+          {page.address}
         </AppText>
       </View>
     </InfoPage>

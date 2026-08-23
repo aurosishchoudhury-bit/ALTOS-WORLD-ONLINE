@@ -820,6 +820,103 @@ async def set_registration_contacted(reg_id: str, payload: ContactedIn):
     return {"ok": True, "contacted": payload.contacted}
 
 
+# ---------------- Editable info pages (About / Terms / Contact) ----------------
+DEFAULT_PAGES: dict = {
+    "about": {
+        "content": (
+            "Altos World is your trusted online store for herbal supplements and natural skin care, "
+            "serving the Cuttack Super Zone and beyond. We believe wellness should be rooted in nature — "
+            "every product we stock is chosen for its purity, quality and plant-powered goodness.\n\n"
+            "What we offer\n"
+            "• Herbal supplements to support everyday health and immunity\n"
+            "• Natural skin care crafted from botanical ingredients\n"
+            "• Special DP pricing for verified Altos ID holders\n"
+            "• Fast, tracked delivery to your doorstep\n\n"
+            "Why shop with us\n"
+            "We are an authorised Altos zone, so you always receive genuine products at honest prices. "
+            "Our team personally verifies every order and keeps you updated on WhatsApp — from confirmation to delivery.\n\n"
+            "About Altos Enterprises Limited\n"
+            "Altos Enterprises Limited started in the year 2000 with just 7 products and has grown into one of "
+            "India's top direct selling companies dedicated to the betterment of people's health. Today Altos offers "
+            "250+ products across Health Care, Personal Care, Hair Care, FMCG, Agriculture Aid, Home Care, "
+            "Deos & Perfumes, Aroma Natural Beauty and Skin Treatment.\n\n"
+            "• Incorporated under the Companies Act, 1956, Govt. of India\n"
+            "• Head office in Ludhiana, Punjab, with 5000+ centres across India\n"
+            "• Most products manufactured in-house at Abhisheik Pharmaceuticals\n"
+            "• ISO 9001:2008 certified · Proud IDSA member since 2003 · Corporate FICCI member\n"
+            "• Honoured with the \"Pride of Country\" award for best services\n"
+            "• 100% satisfaction & product return policy, with 99.98% customer retention\n\n"
+            "Altos believes: \"Thinking together is a beginning, staying together is progress and working together is success.\""
+        ),
+    },
+    "terms": {
+        "content": (
+            "1. Orders & Acceptance\n"
+            "Placing an order on Altos World constitutes an offer to purchase. An order is confirmed only after successful payment. "
+            "We reserve the right to cancel orders due to stock unavailability, pricing errors or suspected misuse; any amount paid will be refunded in full.\n\n"
+            "2. Pricing\n"
+            "All prices are in Indian Rupees (INR) and inclusive of applicable taxes unless stated otherwise. MRP is the maximum retail price. "
+            "DP (distributor price) is available only to verified Altos ID holders after logging in with their Altos ID. "
+            "Offer prices, when shown, are limited-time and may change without notice.\n\n"
+            "3. Payments\n"
+            "Payments are processed securely through Razorpay. We do not store your card, UPI or banking details. "
+            "Your order is confirmed only after the payment gateway reports a successful transaction.\n\n"
+            "4. Shipping & Delivery\n"
+            "Orders are shipped through our courier partners. Tracking details are shared on WhatsApp once your order is dispatched. "
+            "Delivery timelines are estimates and may vary due to location, weather or courier delays.\n\n"
+            "5. Returns & Refunds\n"
+            "Due to the nature of herbal supplements and skin care products, items can be returned only if received damaged, defective or incorrect. "
+            "Report such issues within 48 hours of delivery with photos via our Contact Us page. "
+            "Approved refunds are processed to the original payment method within 7-10 business days.\n\n"
+            "6. Product Information\n"
+            "Our products are herbal/ayurvedic in nature and are not intended to diagnose, treat, cure or prevent any disease. "
+            "Please read labels carefully and consult a healthcare professional before use, especially if pregnant, nursing or on medication.\n\n"
+            "7. Altos ID Verification\n"
+            "Altos ID login is used solely to verify membership for DP pricing. We do not store your Altos ID password. "
+            "Verification lasts for the current app session only.\n\n"
+            "8. Contact\n"
+            "For any questions about these terms, reach us through the Contact Us page in the app menu."
+        ),
+    },
+    "contact": {
+        "intro": "Questions about a product, your order or Altos ID pricing? Reach out any day between 9 AM and 8 PM.",
+        "phone": "+91 77354 54828",
+        "email": "altosworldonline@gmail.com",
+        "address": "Altos World — Cuttack Super Zone\nCuttack, Odisha, India",
+    },
+}
+
+
+class PageIn(BaseModel):
+    content: str = Field(default="", max_length=20000)
+    intro: str = Field(default="", max_length=2000)
+    phone: str = Field(default="", max_length=30)
+    email: str = Field(default="", max_length=254)
+    address: str = Field(default="", max_length=600)
+
+
+@api_router.get("/pages/{key}")
+async def get_page(key: str):
+    if key not in DEFAULT_PAGES:
+        raise HTTPException(404, "Page not found")
+    doc = await db.pages.find_one({"_id": key})
+    if doc:
+        doc.pop("_id", None)
+        return doc
+    return DEFAULT_PAGES[key]
+
+
+@api_router.put("/pages/{key}")
+async def update_page(key: str, payload: PageIn):
+    if key not in DEFAULT_PAGES:
+        raise HTTPException(404, "Page not found")
+    data = {k: v for k, v in payload.dict().items() if k in DEFAULT_PAGES[key] or v}
+    data["updated_at"] = now_iso()
+    await db.pages.update_one({"_id": key}, {"$set": data}, upsert=True)
+    return data
+
+
+
 # ---------------- Store Settings (shipping + minimum order) ----------------
 class SettingsIn(BaseModel):
     shipping_mode: str = Field(default="weight")  # weight | flat

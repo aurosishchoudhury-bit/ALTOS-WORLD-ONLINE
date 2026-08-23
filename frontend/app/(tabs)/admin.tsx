@@ -381,6 +381,17 @@ export default function Admin() {
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               </Pressable>
               <Pressable
+                testID="manage-pages"
+                onPress={() => router.push("/admin/pages")}
+                style={styles.manageDiseases}
+              >
+                <Feather name="file-text" size={16} color={colors.brand} />
+                <AppText variant="semibold" style={styles.manageDiseasesText}>
+                  App Pages — edit About, Terms & Contact
+                </AppText>
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+              <Pressable
                 testID="manage-coupons"
                 onPress={() => router.push("/admin/coupons")}
                 style={styles.manageDiseases}

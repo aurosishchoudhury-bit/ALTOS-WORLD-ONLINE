@@ -349,6 +349,18 @@ export const api = {
   async listRegistrations(): Promise<any[]> {
     return handle(await fetch(`${API}/registrations`));
   },
+  async getPage(key: string): Promise<any> {
+    return handle(await fetch(`${API}/pages/${key}`));
+  },
+  async updatePage(key: string, data: any) {
+    return handle(
+      await fetch(`${API}/pages/${key}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
   async deleteRegistration(id: string) {
     return handle(await fetch(`${API}/registrations/${id}`, { method: "DELETE" }));
   },
