@@ -61,8 +61,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="admin"
         options={{
-          title: "Admin",
-          tabBarIcon: ({ color, size }) => <Feather name="settings" size={size} color={color} />,
+          href: null,
         }}
       />
     </Tabs>

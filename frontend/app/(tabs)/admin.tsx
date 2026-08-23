@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import AppText from "@/src/components/AppText";
+import AdminLock from "@/src/components/AdminLock";
+import { useAdminAuth } from "@/src/context/AdminAuthContext";
 import Button from "@/src/components/Button";
 import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
@@ -56,6 +58,7 @@ export default function Admin() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { unlocked: adminUnlocked } = useAdminAuth();
 
   const [mode, setMode] = useState<"products" | "orders">("products");
   const [products, setProducts] = useState<Product[]>([]);
@@ -251,6 +254,8 @@ export default function Admin() {
       )}
     </View>
   );
+
+  if (!adminUnlocked) return <AdminLock />;
 
   return (
     <View style={styles.container}>

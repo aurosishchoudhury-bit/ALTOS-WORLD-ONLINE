@@ -9,6 +9,7 @@ import AppText from "@/src/components/AppText";
 import Button from "@/src/components/Button";
 import FormField from "@/src/components/FormField";
 import { useToast } from "@/src/components/Toast";
+import { useAdminAuth } from "@/src/context/AdminAuthContext";
 import { api } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
@@ -31,6 +32,29 @@ export default function StoreSettings() {
   const [instagram, setInstagram] = useState("");
   const [xUrl, setXUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const { sessionToken, lock } = useAdminAuth();
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [changingPin, setChangingPin] = useState(false);
+
+  const changePin = async () => {
+    if (newPin.length < 6 || !/^\d+$/.test(newPin)) {
+      toast.show("New PIN must be 6-12 digits");
+      return;
+    }
+    setChangingPin(true);
+    try {
+      await api.changeAdminPin(sessionToken || "", currentPin, newPin);
+      toast.show("PIN changed — unlock again with your new PIN");
+      setCurrentPin("");
+      setNewPin("");
+      lock();
+    } catch (e: any) {
+      toast.show(e?.message || "Could not change PIN");
+    } finally {
+      setChangingPin(false);
+    }
+  };
 
   const load = useCallback(() => {
     api.getSettings().then((s) => {
@@ -152,6 +176,32 @@ export default function StoreSettings() {
         <FormField testID="social-x" label="X (Twitter) URL" value={xUrl} onChangeText={setXUrl} autoCapitalize="none" placeholder="https://x.com/yourhandle" />
 
         <Button testID="save-settings" label="Save Settings" onPress={save} loading={saving} style={{ marginTop: spacing.xl }} />
+
+        <AppText variant="semibold" style={{ fontSize: 15, marginTop: spacing.xl * 1.5, marginBottom: spacing.sm }}>
+          Admin PIN
+        </AppText>
+        <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginBottom: spacing.md }}>
+          This PIN protects the hidden admin panel (opened by tapping the home logo 7 times).
+        </AppText>
+        <FormField
+          testID="current-pin"
+          label="Current PIN"
+          value={currentPin}
+          onChangeText={setCurrentPin}
+          placeholder="Current PIN"
+          keyboardType="number-pad"
+          secureTextEntry
+        />
+        <FormField
+          testID="new-pin"
+          label="New PIN (6-12 digits)"
+          value={newPin}
+          onChangeText={setNewPin}
+          placeholder="New PIN"
+          keyboardType="number-pad"
+          secureTextEntry
+        />
+        <Button testID="change-pin" label="Change PIN" onPress={changePin} loading={changingPin} />
       </KeyboardAwareScrollView>
     </View>
   );

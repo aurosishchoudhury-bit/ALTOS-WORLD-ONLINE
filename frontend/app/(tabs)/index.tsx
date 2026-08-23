@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -38,6 +38,8 @@ export default function Storefront() {
   const { addItem } = useCart();
   const { verified } = useAltosAuth();
   const toast = useToast();
+  const tapCountRef = useRef(0);
+  const lastTapRef = useRef(0);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -138,7 +140,22 @@ export default function Storefront() {
         >
           <Feather name="menu" size={24} color={colors.onSurface} />
         </Pressable>
-        <Image source={LOGO} style={styles.logo} contentFit="contain" />
+        <Pressable
+          testID="logo-secret-tap"
+          onPress={() => {
+            const now = Date.now();
+            if (now - lastTapRef.current > 1500) tapCountRef.current = 0;
+            lastTapRef.current = now;
+            tapCountRef.current += 1;
+            if (tapCountRef.current >= 7) {
+              tapCountRef.current = 0;
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              router.push("/(tabs)/admin");
+            }
+          }}
+        >
+          <Image source={LOGO} style={styles.logo} contentFit="contain" />
+        </Pressable>
         <View style={styles.menuBtn} />
       </View>
 

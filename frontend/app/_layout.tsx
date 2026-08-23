@@ -11,6 +11,7 @@ import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { CartProvider } from "@/src/context/CartContext";
 import { AltosAuthProvider } from "@/src/context/AltosAuthContext";
+import { AdminAuthProvider } from "@/src/context/AdminAuthContext";
 import { ToastProvider } from "@/src/components/Toast";
 import { colors } from "@/src/theme/theme";
 
@@ -43,6 +44,7 @@ export default function RootLayout() {
       <KeyboardProvider>
         <SafeAreaProvider>
           <AltosAuthProvider>
+          <AdminAuthProvider>
           <CartProvider>
             <ToastProvider>
               <StatusBar style="dark" />
@@ -56,11 +58,11 @@ export default function RootLayout() {
                 <Stack.Screen name="product/[id]" />
                 <Stack.Screen name="checkout" />
                 <Stack.Screen name="order-success" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="admin/product-form" options={{ presentation: "modal" }} />
                 <Stack.Screen name="altos-login" options={{ presentation: "modal" }} />
               </Stack>
             </ToastProvider>
           </CartProvider>
+          </AdminAuthProvider>
           </AltosAuthProvider>
         </SafeAreaProvider>
       </KeyboardProvider>

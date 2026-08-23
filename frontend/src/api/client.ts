@@ -349,6 +349,24 @@ export const api = {
   async listRegistrations(): Promise<any[]> {
     return handle(await fetch(`${API}/registrations`));
   },
+  async verifyAdminPin(pin: string): Promise<{ session_token: string; expires_in: number }> {
+    return handle(
+      await fetch(`${API}/admin/verify-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      }),
+    );
+  },
+  async changeAdminPin(sessionToken: string, currentPin: string, newPin: string) {
+    return handle(
+      await fetch(`${API}/admin/change-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Session": sessionToken },
+        body: JSON.stringify({ current_pin: currentPin, new_pin: newPin }),
+      }),
+    );
+  },
   async getPage(key: string): Promise<any> {
     return handle(await fetch(`${API}/pages/${key}`));
   },

@@ -7,6 +7,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import io
 import csv
+import time
+import secrets
 import logging
 import hmac
 import hashlib
@@ -818,6 +820,78 @@ async def set_registration_contacted(reg_id: str, payload: ContactedIn):
     if res.matched_count == 0:
         raise HTTPException(404, "Registration not found")
     return {"ok": True, "contacted": payload.contacted}
+
+
+# ---------------- Admin PIN lock ----------------
+from passlib.hash import bcrypt as bcrypt_hash
+
+DEFAULT_ADMIN_PIN = "24681357"
+ADMIN_SESSION_TTL = 60 * 60  # 1 hour
+admin_sessions: dict = {}  # sha256(token) -> expiry epoch (in-memory, cleared on restart)
+admin_pin_attempts: dict = {}  # ip -> [attempt timestamps]
+
+
+async def _admin_pin_hash() -> str:
+    doc = await db.settings.find_one({"_id": "admin_auth"})
+    if doc and doc.get("pin_hash"):
+        return doc["pin_hash"]
+    h = bcrypt_hash.hash(DEFAULT_ADMIN_PIN)
+    await db.settings.update_one({"_id": "admin_auth"}, {"$set": {"pin_hash": h}}, upsert=True)
+    return h
+
+
+def _require_admin_session(token: Optional[str]):
+    if not token:
+        raise HTTPException(401, "Admin session required")
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    expiry = admin_sessions.get(digest)
+    if not expiry or expiry <= time.time():
+        admin_sessions.pop(digest, None)
+        raise HTTPException(401, "Admin session expired")
+
+
+class AdminPinIn(BaseModel):
+    pin: str = Field(min_length=4, max_length=12)
+
+
+class AdminPinChangeIn(BaseModel):
+    current_pin: str = Field(min_length=4, max_length=12)
+    new_pin: str = Field(min_length=6, max_length=12)
+
+
+@api_router.post("/admin/verify-pin")
+async def verify_admin_pin(payload: AdminPinIn, request: Request):
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    attempts = [t for t in admin_pin_attempts.get(ip, []) if now - t < 60]
+    if len(attempts) >= 5:
+        raise HTTPException(429, "Too many attempts. Please wait a minute and try again.")
+    admin_pin_attempts[ip] = attempts + [now]
+
+    stored = await _admin_pin_hash()
+    if not bcrypt_hash.verify(payload.pin, stored):
+        raise HTTPException(401, "Incorrect PIN")
+
+    token = secrets.token_urlsafe(32)
+    admin_sessions[hashlib.sha256(token.encode()).hexdigest()] = now + ADMIN_SESSION_TTL
+    return {"session_token": token, "expires_in": ADMIN_SESSION_TTL}
+
+
+@api_router.post("/admin/change-pin")
+async def change_admin_pin(payload: AdminPinChangeIn, request: Request):
+    _require_admin_session(request.headers.get("x-admin-session"))
+    if not payload.new_pin.isdigit():
+        raise HTTPException(400, "New PIN must contain digits only")
+    stored = await _admin_pin_hash()
+    if not bcrypt_hash.verify(payload.current_pin, stored):
+        raise HTTPException(401, "Current PIN is incorrect")
+    await db.settings.update_one(
+        {"_id": "admin_auth"},
+        {"$set": {"pin_hash": bcrypt_hash.hash(payload.new_pin), "updated_at": now_iso()}},
+        upsert=True,
+    )
+    admin_sessions.clear()
+    return {"ok": True}
 
 
 # ---------------- Editable info pages (About / Terms / Contact) ----------------
