@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
+  Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -614,6 +615,18 @@ export default function Admin() {
                         : "Confirm order"}
                     </AppText>
                   </Pressable>
+                  {item.status !== "cancelled" && item.status !== "created" && (
+                    <Pressable
+                      testID={`invoice-${item.id}`}
+                      onPress={() => Linking.openURL(api.invoiceUrl(item.id)).catch(() => {})}
+                      style={styles.statusBtn}
+                    >
+                      <Feather name="file-text" size={14} color={colors.onSurface} />
+                      <AppText variant="semibold" color={colors.onSurface} style={styles.actionText}>
+                        Invoice
+                      </AppText>
+                    </Pressable>
+                  )}
                   {item.status === "paid" && (
                     <Pressable
                       testID={`mark-shipped-${item.id}`}
@@ -855,6 +868,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: spacing.xs,
   },
   actionText: { fontSize: 13, letterSpacing: 0.2 },
   srCard: {

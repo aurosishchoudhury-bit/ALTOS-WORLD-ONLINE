@@ -822,6 +822,145 @@ async def set_registration_contacted(reg_id: str, payload: ContactedIn):
     return {"ok": True, "contacted": payload.contacted}
 
 
+# ---------------- Order Invoice PDF ----------------
+def _build_invoice_pdf(order: dict, contact: dict) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF(format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Header band
+    pdf.set_fill_color(199, 0, 23)
+    pdf.rect(0, 0, 210, 26, "F")
+    pdf.set_xy(10, 6)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(120, 10, "Altos World Online Store", ln=0)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "INVOICE", ln=1, align="R")
+    pdf.set_x(10)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, "Cuttack Super Zone", ln=1)
+
+    pdf.ln(8)
+    pdf.set_text_color(30, 30, 30)
+
+    inv_no = f"INV-{order['id'][:8].upper()}"
+    created = (order.get("paid_at") or order.get("created_at") or "")[:10]
+    cust = order.get("customer", {}) or {}
+
+    # Invoice meta (left) & Bill To (right)
+    y0 = pdf.get_y()
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_xy(10, y0)
+    pdf.cell(90, 6, "Invoice Details", ln=1)
+    pdf.set_font("Helvetica", "", 10)
+    meta = [
+        f"Invoice No: {inv_no}",
+        f"Date: {created}",
+        f"Order ID: {order['id']}",
+        f"Payment: {'Partial COD (30% advance)' if order.get('payment_mode') == 'partial_cod' else 'Prepaid (Razorpay)'}",
+    ]
+    if order.get("razorpay_payment_id"):
+        meta.append(f"Payment Ref: {order['razorpay_payment_id']}")
+    for m in meta:
+        pdf.set_x(10)
+        pdf.multi_cell(95, 5.5, m, border=0)
+    y_left = pdf.get_y()
+
+    pdf.set_xy(115, y0)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 6, "Bill To", ln=1)
+    pdf.set_font("Helvetica", "", 10)
+    for line in [cust.get("name", ""), cust.get("address", ""), f"Phone: {cust.get('phone', '')}", cust.get("email", "")]:
+        if line and line != "Phone: ":
+            pdf.set_x(115)
+            pdf.multi_cell(85, 5.5, str(line), border=0)
+    pdf.set_y(max(y_left, pdf.get_y()) + 4)
+
+    # Items table
+    col_w = [10, 95, 20, 30, 30]  # 185 total
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_fill_color(245, 245, 245)
+    pdf.set_x(10)
+    for w, h in zip(col_w, ["#", "Item", "Qty", "Unit Price", "Amount"]):
+        pdf.cell(w, 8, h, border=1, fill=True, align="C" if h != "Item" else "L")
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 10)
+    for i, it in enumerate(order.get("items", []), start=1):
+        name = str(it.get("name", ""))[:55]
+        unit = it.get("unit_price", 0) or 0
+        qty = it.get("quantity", 0) or 0
+        line = it.get("line_total", unit * qty) or 0
+        pdf.set_x(10)
+        pdf.cell(col_w[0], 8, str(i), border=1, align="C")
+        pdf.cell(col_w[1], 8, name, border=1)
+        pdf.cell(col_w[2], 8, str(qty), border=1, align="C")
+        pdf.cell(col_w[3], 8, f"Rs. {unit:,.2f}", border=1, align="R")
+        pdf.cell(col_w[4], 8, f"Rs. {line:,.2f}", border=1, align="R")
+        pdf.ln()
+
+    # Totals block
+    subtotal = order.get("subtotal", order.get("amount", 0)) or 0
+    shipping = order.get("shipping_charge", 0) or 0
+    discount = order.get("discount", 0) or 0
+    total = order.get("total_billing", order.get("amount", 0)) or 0
+    advance = order.get("advance_amount", 0) or 0
+    cod_due = order.get("cod_due", 0) or 0
+
+    def total_row(label: str, value: str, bold: bool = False):
+        pdf.set_x(105)
+        pdf.set_font("Helvetica", "B" if bold else "", 10 if not bold else 11)
+        pdf.cell(50, 7, label, border=0, align="R")
+        pdf.cell(40, 7, value, border=0, align="R")
+        pdf.ln()
+
+    pdf.ln(3)
+    total_row("Subtotal:", f"Rs. {subtotal:,.2f}")
+    if shipping:
+        total_row("Shipping:", f"Rs. {shipping:,.2f}")
+    if discount:
+        coupon = f" ({order.get('coupon_code')})" if order.get("coupon_code") else ""
+        total_row(f"Discount{coupon}:", f"- Rs. {discount:,.2f}")
+    pdf.set_draw_color(199, 0, 23)
+    pdf.line(105, pdf.get_y() + 1, 195, pdf.get_y() + 1)
+    pdf.ln(2)
+    total_row("Grand Total:", f"Rs. {total:,.2f}", bold=True)
+    if order.get("payment_mode") == "partial_cod":
+        total_row("Advance Paid:", f"Rs. {advance:,.2f}")
+        total_row("Balance on Delivery (COD):", f"Rs. {cod_due:,.2f}", bold=True)
+
+    # Footer
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.set_text_color(120, 120, 120)
+    pdf.set_x(10)
+    footer_contact = f"{contact.get('phone', '')} | {contact.get('email', '')}"
+    pdf.multi_cell(185, 5, f"Thank you for shopping with Altos World! For any queries: {footer_contact}", border=0)
+    pdf.set_x(10)
+    pdf.multi_cell(185, 5, "This is a computer generated invoice and does not require a signature.", border=0)
+
+    return bytes(pdf.output())
+
+
+@api_router.get("/orders/{order_id}/invoice")
+async def download_invoice(order_id: str):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.get("status") in ("created", "cancelled"):
+        raise HTTPException(400, "Invoice is available only for paid orders")
+    contact_doc = await db.pages.find_one({"_id": "contact"}) or {}
+    contact = {**DEFAULT_PAGES["contact"], **{k: v for k, v in contact_doc.items() if k != "_id"}}
+    pdf_bytes = _build_invoice_pdf(order, contact)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=invoice-{order['id'][:8]}.pdf"},
+    )
+
+
 # ---------------- Admin PIN lock ----------------
 from passlib.hash import bcrypt as bcrypt_hash
 

@@ -129,6 +129,9 @@ export const api = {
   async requestInstantBV(orderId: string) {
     return handle(await fetch(`${API}/orders/${orderId}/instant-bv`, { method: "POST" }));
   },
+  invoiceUrl(orderId: string): string {
+    return `${API}/orders/${orderId}/invoice`;
+  },
   async markInstantBVDone(orderId: string) {
     return handle(await fetch(`${API}/orders/${orderId}/instant-bv/done`, { method: "POST" }));
   },

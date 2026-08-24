@@ -151,6 +151,19 @@ export default function OrderLookup() {
                     <Feather name="external-link" size={14} color={colors.muted} />
                   </Pressable>
                 )}
+                {item.status !== "cancelled" && (
+                  <Pressable
+                    testID={`invoice-${item.id}`}
+                    onPress={() => Linking.openURL(api.invoiceUrl(item.id)).catch(() => {})}
+                    style={styles.trackBtn}
+                  >
+                    <Feather name="file-text" size={15} color={colors.brand} />
+                    <AppText variant="semibold" style={styles.trackText}>
+                      Download invoice
+                    </AppText>
+                    <Feather name="download" size={14} color={colors.muted} />
+                  </Pressable>
+                )}
                 {item.status === "paid" && !item.instant_bv_requested && (
                   <Pressable
                     testID={`cancel-${item.id}`}
