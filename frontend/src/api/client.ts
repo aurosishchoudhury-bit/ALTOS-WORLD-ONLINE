@@ -132,6 +132,22 @@ export const api = {
   invoiceUrl(orderId: string): string {
     return `${API}/orders/${orderId}/invoice`;
   },
+  async generateAiImage(data: {
+    variant: "lifestyle" | "ingredients" | "benefits";
+    image_url: string;
+    product_name?: string;
+    url?: string;
+    ingredients?: string;
+    benefits?: string;
+  }): Promise<{ image_url: string; ingredients: string }> {
+    return handle(
+      await fetch(`${API}/products/ai-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
+  },
   async markInstantBVDone(orderId: string) {
     return handle(await fetch(`${API}/orders/${orderId}/instant-bv/done`, { method: "POST" }));
   },

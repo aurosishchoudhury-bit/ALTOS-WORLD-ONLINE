@@ -12,6 +12,7 @@ import secrets
 import logging
 import hmac
 import hashlib
+import base64
 import uuid
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -120,7 +121,9 @@ class ProductBase(BaseModel):
     weight: str = ""  # display text, e.g. "60 capsules", "30ml", "250g"
     weight_grams: float = 0  # numeric weight used for shipping calculation
     dosage: str = ""  # recommended dosage text shown on the product page
-    images: List[str] = Field(default_factory=list, max_length=4)  # extra product photos
+    ingredients: str = ""  # ingredients list (one per line or comma separated)
+    benefits: str = ""  # key benefits text
+    images: List[str] = Field(default_factory=list, max_length=8)  # extra product photos
     category: str = "Supplements"
     image: str = ""
     stock: int = 100
@@ -440,9 +443,19 @@ async def disease_products(disease_id: str):
     return [Product(**{**d, **ratings.get(d["id"], {})}) for d in docs]
 
 
+LABEL_IMAGE_URL = "/api/files/altos-world/uploads/products/label-fssai.jpg"
+
+
+def _with_label_image(images: list) -> list:
+    """Ensure the FSSAI/manufacturer label image is always the LAST product image."""
+    imgs = [i for i in (images or []) if i != LABEL_IMAGE_URL]
+    return imgs + [LABEL_IMAGE_URL]
+
+
 @api_router.post("/products", response_model=Product)
 async def create_product(payload: ProductCreate):
     product = Product(**payload.dict())
+    product.images = _with_label_image(product.images or ([product.image] if product.image else []))
     await db.products.insert_one(product.dict())
     return product
 
@@ -452,8 +465,10 @@ async def update_product(product_id: str, payload: ProductCreate):
     existing = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not existing:
         raise HTTPException(404, "Product not found")
-    updated = {**existing, **payload.dict()}
-    await db.products.update_one({"id": product_id}, {"$set": payload.dict()})
+    data = payload.dict()
+    data["images"] = _with_label_image(data.get("images") or ([data["image"]] if data.get("image") else []))
+    updated = {**existing, **data}
+    await db.products.update_one({"id": product_id}, {"$set": data})
     return Product(**updated)
 
 
@@ -546,7 +561,7 @@ async def import_product_url(payload: ImportUrlRequest):
         raise HTTPException(502, "Could not open that link — check the URL and try again")
 
     out: dict = {"name": "", "description": "", "weight": "", "weight_grams": 0,
-                 "dosage": "", "mrp": 0, "images": []}
+                 "dosage": "", "mrp": 0, "images": [], "ingredients": "", "benefits": ""}
 
     m = _re.search(r"<h1[^>]*>(.*?)</h1>", html, _re.S)
     if m:
@@ -573,7 +588,7 @@ async def import_product_url(payload: ImportUrlRequest):
 
     m = _re.search(r"Benefits\s*</h2>(.*?)(<h2|</section)", html, _re.S | _re.I)
     if m:
-        out["description"] = _strip_tags(m.group(1))[:2000]
+        out["benefits"] = _strip_tags(m.group(1))[:3000]
 
     # Download the main product image and store it in our object storage.
     img = _re.search(r'<img[^>]+src="(/storagecache/product_image/[^"]+)"', html)
@@ -591,6 +606,75 @@ async def import_product_url(payload: ImportUrlRequest):
             out["images"] = [f"/api/files/{result['path']}"]
         except Exception as e:  # noqa: BLE001
             logger.warning("Import image download failed: %s", e)
+
+    # ---- New altosindia.net format (…/products/product/<slug>) ----
+    if not out["name"]:
+        m = _re.search(r'class="[^"]*product-title[^"]*"[^>]*>(.*?)</h3>', html, _re.S)
+        if m:
+            out["name"] = _strip_tags(m.group(1))
+    if not out["name"]:
+        m = _re.search(r'<meta property="og:title" content="([^"]+)"', html)
+        if m:
+            out["name"] = m.group(1).strip()
+
+    if not out["description"]:
+        m = _re.search(r'product-feature-details.*?<p[^>]*>(.*?)</p>', html, _re.S)
+        if m:
+            out["description"] = _strip_tags(m.group(1))[:2000]
+    if not out["description"]:
+        m = _re.search(r'<meta name="description" content="([^"]+)"', html)
+        if m:
+            out["description"] = _strip_tags(m.group(1))[:2000]
+    if not out["description"] and out["benefits"]:
+        out["description"] = out["benefits"][:2000]
+
+    # Ingredients section: <h5 class="product-name ...">Haldi</h5> items
+    ing_section = _re.search(r'Ingredients\s*</h2>(.*?)</section>', html, _re.S | _re.I)
+    if ing_section:
+        names = _re.findall(r'<h5[^>]*product-name[^>]*>(.*?)</h5>', ing_section.group(1), _re.S)
+        clean = [_strip_tags(n) for n in names]
+        out["ingredients"] = ", ".join([c for c in clean if c])[:1000]
+
+    if not out["weight"]:
+        m = _re.search(r'<td[^>]*>\s*([\d.]+\s*(?:ml|gm|gms|g|kg|l|tab(?:let)?s?|caps?(?:ule)?s?)\b[^<]*)</td>', html, _re.I)
+        if m:
+            out["weight"] = m.group(1).strip()
+
+    if not out["weight_grams"] and out["weight"]:
+        m = _re.search(r'([\d.]+)\s*(ml|gm|gms|g|kg|l)\b', out["weight"], _re.I)
+        if m:
+            grams = float(m.group(1))
+            if m.group(2).lower() in ("kg", "l"):
+                grams *= 1000
+            out["weight_grams"] = grams
+
+    if not out["mrp"]:
+        m = _re.search(r'(?:\u20b9|Rs\.?|&#8377;)\s*([\d,]+(?:\.\d+)?)', html)
+        if m:
+            out["mrp"] = float(m.group(1).replace(",", ""))
+
+    if not out["images"]:
+        srcs = _re.findall(r'single-product-img[^>]*>\s*<img[^>]+src="([^"]+)"', html)
+        if not srcs:
+            m = _re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if m:
+                srcs = [m.group(1)]
+        stored = []
+        for s in srcs[:3]:
+            full = s if s.startswith("http") else "https://www.altosindia.net" + s
+            try:
+                def _dl(u=full):
+                    r = sess.get(u, timeout=25)
+                    r.raise_for_status()
+                    return r.content, r.headers.get("Content-Type", "image/jpeg").split(";")[0]
+                data, ctype = await run_in_threadpool(_dl)
+                ext = ALLOWED_IMAGE_TYPES.get(ctype, "jpg")
+                path = f"{APP_NAME}/uploads/products/{uuid.uuid4().hex}.{ext}"
+                result = await run_in_threadpool(_put_object, path, data, ctype if ctype in ALLOWED_IMAGE_TYPES else "image/jpeg")
+                stored.append(f"/api/files/{result['path']}")
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Import image download failed: %s", e)
+        out["images"] = stored
 
     if not out["name"]:
         raise HTTPException(400, "Could not read product details from that page — is it a product link?")
@@ -820,6 +904,123 @@ async def set_registration_contacted(reg_id: str, payload: ContactedIn):
     if res.matched_count == 0:
         raise HTTPException(404, "Registration not found")
     return {"ok": True, "contacted": payload.contacted}
+
+
+# ---------------- AI product images (Gemini Nano Banana) ----------------
+class AiImageIn(BaseModel):
+    variant: str = Field(pattern="^(lifestyle|ingredients|benefits)$")
+    image_url: str = Field(min_length=1)
+    product_name: str = Field(default="", max_length=200)
+    url: str = Field(default="", max_length=500)
+    ingredients: str = Field(default="", max_length=2000)
+    benefits: str = Field(default="", max_length=3000)
+
+
+async def _fetch_image_bytes(image_url: str) -> bytes:
+    full = f"http://localhost:8001{image_url}" if image_url.startswith("/api/files/") else image_url
+    r = await run_in_threadpool(
+        lambda: requests.get(full, timeout=25, headers={"User-Agent": _SCRAPE_UA})
+    )
+    r.raise_for_status()
+    return r.content
+
+
+@api_router.post("/products/ai-image")
+async def generate_ai_product_image(payload: AiImageIn):
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+
+    key = os.environ.get("EMERGENT_LLM_KEY")
+    if not key:
+        raise HTTPException(500, "AI key not configured")
+
+    try:
+        img_bytes = await _fetch_image_bytes(payload.image_url)
+    except Exception:
+        raise HTTPException(400, "Could not load the product image")
+    img_b64 = base64.b64encode(img_bytes).decode()
+
+    ingredients_text = payload.ingredients.strip()
+    if payload.variant == "ingredients" and not ingredients_text:
+        page_text = ""
+        if payload.url and "altosindia.net" in payload.url:
+            try:
+                page_html, _ = await run_in_threadpool(_fetch_altos_page, payload.url)
+                page_text = _strip_tags(page_html)[:6000]
+            except Exception:
+                page_text = ""
+        try:
+            text_chat = LlmChat(
+                api_key=key,
+                session_id=f"ing-{uuid.uuid4().hex}",
+                system_message="You extract herbal product ingredient data accurately and concisely.",
+            ).with_model("gemini", "gemini-3.5-flash")
+            extract_prompt = (
+                f"Product: {payload.product_name or 'herbal product'}\n"
+                f"Webpage text: {page_text}\n\n"
+                "List the herbal/active ingredients of this product with their scientific (botanical) "
+                "names and one short benefit each. Format each line exactly as: "
+                "Ingredient (Scientific name) - benefit. Maximum 8 ingredients, one per line. "
+                "If the webpage text does not mention ingredients, infer the most likely well-known "
+                "ingredients for this ayurvedic/herbal product. Output ONLY the list, nothing else."
+            )
+            resp = await text_chat.send_message(UserMessage(text=extract_prompt))
+            ingredients_text = str(resp).strip()[:1200]
+        except Exception:
+            ingredients_text = ""
+
+    if payload.variant == "lifestyle":
+        prompt = (
+            "Using the product shown in this image, create a modern, light, colourful, "
+            "ecommerce-worthy product photograph. Keep the product packaging, label and text exactly "
+            "as in the original. Place it in a bright, airy studio scene with soft natural light, "
+            "fresh botanical elements (leaves, herbs) and a clean pastel background. Professional "
+            "product photography, high resolution, square format."
+        )
+    elif payload.variant == "benefits":
+        prompt = (
+            "Create a clean, modern, ecommerce-worthy infographic image featuring the product shown "
+            "in this image. Keep the product packaging and label exactly as in the original, placed "
+            "prominently. Around it, present its key health benefits as short bullet points with "
+            "small elegant icons. Light background, clear readable typography, soft green accents, "
+            "professional information-sharing layout, square format.\n\n"
+            f"Benefits to feature (summarise to the 5-6 most important, keep each under 8 words):\n"
+            f"{payload.benefits.strip() or 'the key health benefits of this herbal product'}"
+        )
+    else:
+        prompt = (
+            "Create a clean, modern, ecommerce-worthy infographic image featuring the product shown "
+            "in this image. Keep the product packaging and label exactly as in the original, placed "
+            "prominently. Around it, show its key ingredients as small labelled illustrations with "
+            "their names, scientific names in italics, and one short benefit each. Light background, "
+            "elegant typography, soft green accents, professional layout, square format.\n\n"
+            f"Ingredients to feature:\n{ingredients_text or 'the key herbal ingredients of this product'}"
+        )
+
+    img_chat = LlmChat(
+        api_key=key,
+        session_id=f"img-{uuid.uuid4().hex}",
+        system_message="You are a helpful AI assistant",
+    )
+    img_chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
+    msg = UserMessage(text=prompt, file_contents=[ImageContent(img_b64)])
+    try:
+        _text, images = await img_chat.send_message_multimodal_response(msg)
+    except Exception:
+        logging.exception("AI image generation failed")
+        raise HTTPException(502, "AI image generation failed — please try again")
+    if not images:
+        raise HTTPException(502, "AI did not return an image — please try again")
+
+    out_bytes = base64.b64decode(images[0]["data"])
+    path = f"{APP_NAME}/uploads/products/ai-{payload.variant}-{uuid.uuid4().hex}.png"
+    try:
+        result = await run_in_threadpool(_put_object, path, out_bytes, "image/png")
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 502
+        if status == 402:
+            raise HTTPException(402, "Storage credits exhausted — image uploads paused")
+        raise HTTPException(502, "Could not store the generated image")
+    return {"image_url": f"/api/files/{result['path']}", "ingredients": ingredients_text}
 
 
 # ---------------- Order Invoice PDF ----------------

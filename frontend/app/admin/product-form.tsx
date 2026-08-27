@@ -15,7 +15,7 @@ import { api, API, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
 const CATEGORY_OPTIONS = ["Supplements", "Skincare", "Hair Care", "Home Care", "Personal Care", "Agriculture/Veterinary"];
-const MAX_IMAGES = 4;
+const MAX_IMAGES = 6;
 
 export default function ProductForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -106,6 +106,49 @@ export default function ProductForm() {
   const [bestseller, setBestseller] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(0);
+  const [ingredients, setIngredients] = useState("");
+  const [benefits, setBenefits] = useState("");
+
+  const runAiImages = (
+    baseImage: string,
+    productName: string,
+    pageUrl: string,
+    ing: string,
+    ben: string,
+  ) => {
+    setAiGenerating(3);
+    (["lifestyle", "ingredients", "benefits"] as const).forEach((variant) => {
+      api
+        .generateAiImage({
+          variant,
+          image_url: baseImage,
+          product_name: productName,
+          url: pageUrl,
+          ingredients: ing,
+          benefits: ben,
+        })
+        .then((r) => {
+          setImages((prev) => (prev.includes(r.image_url) || prev.length >= MAX_IMAGES ? prev : [...prev, r.image_url]));
+          const label =
+            variant === "lifestyle" ? "AI ecommerce image added" : variant === "ingredients" ? "AI ingredients image added" : "AI benefits image added";
+          toast.show(label);
+        })
+        .catch(() => toast.show(`AI ${variant} image failed — tap Regenerate to retry`))
+        .finally(() => setAiGenerating((n) => n - 1));
+    });
+  };
+
+  const regenerateAi = () => {
+    const base = images.find((i) => !i.includes("/ai-") && !i.includes("label-fssai")) || images[0];
+    if (!base) {
+      toast.show("Add or import a product image first");
+      return;
+    }
+    // drop previous AI images so fresh ones replace them
+    setImages((prev) => prev.filter((i) => !i.includes("/uploads/products/ai-")));
+    runAiImages(base, name.trim(), importUrl.trim(), ingredients.trim(), benefits.trim());
+  };
 
   const runImport = async () => {
     if (!importUrl.trim().includes("altosindia.net")) {
@@ -121,8 +164,15 @@ export default function ProductForm() {
       if (d.weight_grams) setWeightGrams(String(d.weight_grams));
       if (d.dosage) setDosage(d.dosage);
       if (d.mrp) setMrp(String(d.mrp));
-      if (d.images?.length) setImages(d.images);
-      toast.show("Product details imported — review & set prices");
+      if (d.ingredients) setIngredients(d.ingredients);
+      if (d.benefits) setBenefits(d.benefits);
+      if (d.images?.length) {
+        setImages(d.images);
+        runAiImages(d.images[0], d.name || "", importUrl.trim(), d.ingredients || "", d.benefits || "");
+        toast.show("Details imported — generating 3 AI images…");
+      } else {
+        toast.show("Product details imported — review & set prices");
+      }
     } catch (e: any) {
       toast.show(e?.message || "Could not import from that link");
     } finally {
@@ -147,6 +197,8 @@ export default function ProductForm() {
           setWeight(p.weight || "");
           setWeightGrams(p.weight_grams ? String(p.weight_grams) : "");
           setDosage((p as any).dosage || "");
+          setIngredients((p as any).ingredients || "");
+          setBenefits((p as any).benefits || "");
           setBv(p.bv ? String(p.bv) : "");
           setCategory(p.category);
           setImage(p.image);
@@ -193,6 +245,8 @@ export default function ProductForm() {
       weight: weight.trim(),
       weight_grams: weightGrams.trim() && !isNaN(gramsNum) ? gramsNum : 0,
       dosage: dosage.trim(),
+      ingredients: ingredients.trim(),
+      benefits: benefits.trim(),
       bv: bv.trim() && !isNaN(parseFloat(bv)) ? parseFloat(bv) : 0,
       category: category.trim() || "Supplements",
       image: images[0] || image.trim(),
@@ -266,6 +320,25 @@ export default function ProductForm() {
             loading={importing}
           />
         </View>
+
+        {aiGenerating > 0 && (
+          <View style={styles.aiBanner} testID="ai-generating-banner">
+            <ActivityIndicator size="small" color={colors.brand} />
+            <AppText variant="semibold" style={styles.aiBannerText}>
+              Generating {aiGenerating} AI image{aiGenerating > 1 ? "s" : ""} (ecommerce shot +
+              ingredients + benefits)… they&apos;ll be added below automatically
+            </AppText>
+          </View>
+        )}
+
+        {images.length > 0 && aiGenerating === 0 && (
+          <Pressable testID="regenerate-ai" onPress={regenerateAi} style={styles.regenBtn}>
+            <Feather name="refresh-cw" size={14} color={colors.brand} />
+            <AppText variant="semibold" style={styles.regenText}>
+              Regenerate AI images (fresh look)
+            </AppText>
+          </Pressable>
+        )}
 
         {images.length > 0 ? (
           <View style={styles.thumbRow}>
@@ -467,6 +540,26 @@ export default function ProductForm() {
           placeholder="e.g. 1 capsule twice daily after meals"
         />
         <FormField
+          testID="form-ingredients"
+          label="Ingredients"
+          value={ingredients}
+          onChangeText={setIngredients}
+          placeholder="e.g. Haldi, Kesar, Curcumin"
+          multiline
+          numberOfLines={3}
+          style={styles.multilineInput}
+        />
+        <FormField
+          testID="form-benefits"
+          label="Benefits"
+          value={benefits}
+          onChangeText={setBenefits}
+          placeholder="Key health benefits of this product"
+          multiline
+          numberOfLines={4}
+          style={styles.multilineInput}
+        />
+        <FormField
           testID="form-bv"
           label="BV — Business Volume (for Altos ID holders)"
           value={bv}
@@ -589,6 +682,29 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
+  aiBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  aiBannerText: { flex: 1, fontSize: 12, lineHeight: 17, color: colors.brand },
+  regenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: radius.md,
+    minHeight: 44,
+    marginBottom: spacing.md,
+  },
+  regenText: { fontSize: 13, color: colors.brand },
+  multilineInput: { minHeight: 76, textAlignVertical: "top" },
   thumbWrap: {
     width: 74,
     height: 74,
