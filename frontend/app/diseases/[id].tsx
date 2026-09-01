@@ -6,6 +6,7 @@ import { Feather } from "@expo/vector-icons";
 
 import AppText from "@/src/components/AppText";
 import ProductCard from "@/src/components/ProductCard";
+import DeliveryEstimate from "@/src/components/DeliveryEstimate";
 import { useCart } from "@/src/context/CartContext";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { useToast } from "@/src/components/Toast";
@@ -76,29 +77,34 @@ export default function DiseaseProducts() {
           contentContainerStyle={{ paddingBottom: spacing.xxl, paddingTop: spacing.lg }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={styles.dosageTable} testID="dosage-table">
-              <AppText variant="semibold" style={styles.dosageTitle}>
-                Recommended Dosage
-              </AppText>
-              <View style={styles.tableHeader}>
-                <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
-                  Product
+            <>
+              <View style={styles.dosageTable} testID="dosage-table">
+                <AppText variant="semibold" style={styles.dosageTitle}>
+                  Recommended Dosage
                 </AppText>
-                <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
-                  Dosage
-                </AppText>
-              </View>
-              {products.map((p) => (
-                <View key={`row-${p.id}`} style={styles.tableRow}>
-                  <AppText variant="body" style={styles.cell} numberOfLines={2}>
-                    {p.name}
+                <View style={styles.tableHeader}>
+                  <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
+                    Product
                   </AppText>
-                  <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.cell}>
-                    {dosages[p.id] || p.dosage || "As directed"}
+                  <AppText variant="semibold" style={[styles.cell, styles.cellHead]}>
+                    Dosage
                   </AppText>
                 </View>
-              ))}
-            </View>
+                {products.map((p) => (
+                  <View key={`row-${p.id}`} style={styles.tableRow}>
+                    <AppText variant="body" style={styles.cell} numberOfLines={2}>
+                      {p.name}
+                    </AppText>
+                    <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.cell}>
+                      {dosages[p.id] || p.dosage || "As directed"}
+                    </AppText>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.estimateWrap}>
+                <DeliveryEstimate />
+              </View>
+            </>
           }
           renderItem={({ item }) => (
             <ProductCard
@@ -186,6 +192,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cellHead: { fontSize: 12 },
+  estimateWrap: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
   packageBar: {
     flexDirection: "row",
     alignItems: "center",

@@ -141,6 +141,9 @@ export const api = {
   invoiceUrl(orderId: string): string {
     return `${API}/orders/${orderId}/invoice`;
   },
+  async deliveryEstimate(pincode: string): Promise<any> {
+    return handle(await fetch(`${API}/delivery-estimate?pincode=${encodeURIComponent(pincode)}`));
+  },
   async generateAiImage(data: {
     variant: "lifestyle" | "ingredients" | "benefits";
     image_url: string;

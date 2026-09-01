@@ -18,6 +18,7 @@ import Button from "@/src/components/Button";
 import QuantityStepper from "@/src/components/QuantityStepper";
 import Stars from "@/src/components/Stars";
 import FormField from "@/src/components/FormField";
+import DeliveryEstimate from "@/src/components/DeliveryEstimate";
 import { useCart } from "@/src/context/CartContext";
 import { useToast } from "@/src/components/Toast";
 import { api, Product, resolveImageUri } from "@/src/api/client";
@@ -335,6 +336,10 @@ export default function ProductDetail() {
                 </AppText>
               </View>
             )}
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
+            <DeliveryEstimate />
           </View>
 
           <View style={styles.divider} />

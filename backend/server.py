@@ -1038,6 +1038,80 @@ async def generate_ai_product_image(payload: AiImageIn):
     return {"image_url": f"/api/files/{result['path']}", "ingredients": ingredients_text}
 
 
+# ---------------- Delivery estimate by PIN code ----------------
+NEIGHBOR_STATES = {"West Bengal", "Jharkhand", "Chhattisgarh", "Andhra Pradesh", "Bihar", "Telangana"}
+REMOTE_STATES = {
+    "Jammu & Kashmir", "Jammu and Kashmir", "Ladakh", "Himachal Pradesh", "Arunachal Pradesh",
+    "Assam", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Tripura", "Sikkim",
+    "Andaman & Nicobar Islands", "Andaman and Nicobar Islands", "Lakshadweep",
+}
+
+
+@api_router.get("/delivery-estimate")
+async def delivery_estimate(pincode: str):
+    pin = pincode.strip()
+    if not (len(pin) == 6 and pin.isdigit() and pin[0] != "0"):
+        raise HTTPException(400, "Please enter a valid 6-digit PIN code")
+
+    district, state = "", ""
+    try:
+        def _lookup():
+            r = requests.get(
+                f"https://api.postalpincode.in/pincode/{pin}",
+                timeout=10,
+                headers={"User-Agent": _SCRAPE_UA, "Accept": "application/json"},
+            )
+            r.raise_for_status()
+            return r.json()
+        data = await run_in_threadpool(_lookup)
+        offices = (data[0] or {}).get("PostOffice") or []
+        if data[0].get("Status") != "Success" or not offices:
+            raise HTTPException(400, "This PIN code was not found — please check and try again")
+        district = offices[0].get("District", "")
+        state = offices[0].get("State", "") or offices[0].get("Circle", "")
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # postal API down — fall back to prefix zones
+
+    if state:
+        if district.lower() == "cuttack":
+            lo, hi = 1, 2
+        elif state == "Odisha":
+            lo, hi = 2, 3
+        elif state in REMOTE_STATES:
+            lo, hi = 6, 9
+        elif state in NEIGHBOR_STATES:
+            lo, hi = 3, 5
+        else:
+            lo, hi = 4, 6
+    else:
+        first = pin[0]
+        if pin[:3] in ("753", "754"):
+            lo, hi = 1, 2
+        elif pin[:2] in ("75", "76", "77"):
+            lo, hi = 2, 3
+        elif first in ("7", "8"):
+            lo, hi = 3, 5
+        else:
+            lo, hi = 4, 6
+
+    # +2 days handling/dispatch time before the courier picks up
+    lo += 2
+    hi += 2
+    today = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)  # IST
+    fmt = lambda d: d.strftime("%a, %d %b")  # noqa: E731
+    return {
+        "pincode": pin,
+        "district": district,
+        "state": state,
+        "min_days": lo,
+        "max_days": hi,
+        "from_date": fmt(today + timedelta(days=lo)),
+        "to_date": fmt(today + timedelta(days=hi)),
+    }
+
+
 # ---------------- Order Invoice PDF ----------------
 def _build_invoice_pdf(order: dict, contact: dict) -> bytes:
     from fpdf import FPDF
