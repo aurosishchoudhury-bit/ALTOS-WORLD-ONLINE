@@ -285,7 +285,22 @@ BASE_CATEGORIES = ["Supplements", "Skincare", "Hair Care", "Home Care", "Persona
 @api_router.get("/categories")
 async def list_categories():
     cats = await db.products.distinct("category")
-    return {"categories": sorted({c for c in cats if c} | set(BASE_CATEGORIES))}
+    extra = [c["name"] async for c in db.categories.find({}, {"_id": 0, "name": 1})]
+    return {"categories": sorted({c for c in cats if c} | set(BASE_CATEGORIES) | set(extra))}
+
+
+class CategoryIn(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+
+
+@api_router.post("/categories")
+async def add_category(payload: CategoryIn):
+    name = payload.name.strip()
+    existing = await list_categories()
+    if name.lower() in {c.lower() for c in existing["categories"]}:
+        raise HTTPException(400, "That category already exists")
+    await db.categories.insert_one({"name": name})
+    return {"ok": True, "name": name}
 
 
 @api_router.get("/products/{product_id}", response_model=Product)

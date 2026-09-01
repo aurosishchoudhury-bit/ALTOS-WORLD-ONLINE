@@ -58,6 +58,15 @@ export const api = {
     const j = await handle(await fetch(`${API}/categories`));
     return j.categories ?? [];
   },
+  async addCategory(name: string) {
+    return handle(
+      await fetch(`${API}/categories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
+    );
+  },
   async createProduct(data: Partial<Product>): Promise<Product> {
     return handle(
       await fetch(`${API}/products`, {

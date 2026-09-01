@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, Switch, Platform, Linking } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Switch, Platform, Linking, Modal, ScrollView, TextInput } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -109,6 +109,35 @@ export default function ProductForm() {
   const [aiGenerating, setAiGenerating] = useState(0);
   const [ingredients, setIngredients] = useState("");
   const [benefits, setBenefits] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(CATEGORY_OPTIONS);
+  const [catOpen, setCatOpen] = useState(false);
+  const [newCat, setNewCat] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
+
+  useEffect(() => {
+    api.categories().then((c) => c.length && setCategoryOptions(c)).catch(() => {});
+  }, []);
+
+  const addCategory = async () => {
+    const nameToAdd = newCat.trim();
+    if (nameToAdd.length < 2) {
+      toast.show("Enter a category name");
+      return;
+    }
+    setAddingCat(true);
+    try {
+      await api.addCategory(nameToAdd);
+      setCategoryOptions((prev) => [...new Set([...prev, nameToAdd])].sort());
+      setCategory(nameToAdd);
+      setNewCat("");
+      setCatOpen(false);
+      toast.show(`Category "${nameToAdd}" added`);
+    } catch (e: any) {
+      toast.show(e?.message || "Could not add category");
+    } finally {
+      setAddingCat(false);
+    }
+  };
 
   const runAiImages = (
     baseImage: string,
@@ -408,27 +437,58 @@ export default function ProductForm() {
         <AppText variant="medium" color={colors.onSurfaceSecondary} style={styles.label}>
           CATEGORY
         </AppText>
-        <View style={styles.chipRow}>
-          {CATEGORY_OPTIONS.map((c) => {
-            const active = category === c;
-            return (
-              <Pressable
-                key={c}
-                testID={`cat-${c}`}
-                onPress={() => setCategory(c)}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <AppText
-                  variant="medium"
-                  color={active ? colors.onBrand : colors.onSurface}
-                  style={{ fontSize: 13 }}
-                >
-                  {c}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Pressable testID="category-dropdown" onPress={() => setCatOpen(true)} style={styles.catDropdown}>
+          <AppText variant="medium" style={{ fontSize: 14 }}>
+            {category}
+          </AppText>
+          <Feather name="chevron-down" size={16} color={colors.muted} />
+        </Pressable>
+
+        <Modal visible={catOpen} transparent animationType="fade" onRequestClose={() => setCatOpen(false)}>
+          <Pressable style={styles.catOverlay} onPress={() => setCatOpen(false)}>
+            <Pressable style={styles.catCard} onPress={() => {}}>
+              <AppText variant="semibold" style={styles.catTitle}>
+                Select category
+              </AppText>
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                {categoryOptions.map((c) => (
+                  <Pressable
+                    key={c}
+                    testID={`cat-${c}`}
+                    onPress={() => {
+                      setCategory(c);
+                      setCatOpen(false);
+                    }}
+                    style={styles.catRow}
+                  >
+                    <AppText
+                      variant={c === category ? "semibold" : "body"}
+                      color={c === category ? colors.brand : colors.onSurface}
+                    >
+                      {c}
+                    </AppText>
+                    {c === category && <Feather name="check" size={16} color={colors.brand} />}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.addCatRow}>
+                <TextInput
+                  testID="new-category-input"
+                  value={newCat}
+                  onChangeText={setNewCat}
+                  placeholder="New category name"
+                  placeholderTextColor={colors.muted}
+                  style={styles.addCatInput}
+                />
+                <Pressable testID="add-category" onPress={addCategory} style={styles.addCatBtn} disabled={addingCat}>
+                  <AppText variant="semibold" color={colors.onBrand} style={{ fontSize: 13 }}>
+                    {addingCat ? "…" : "Add"}
+                  </AppText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         <View style={styles.priceRow}>
           <View style={{ flex: 1 }}>
@@ -705,6 +765,66 @@ const styles = StyleSheet.create({
   },
   regenText: { fontSize: 13, color: colors.brand },
   multilineInput: { minHeight: 76, textAlignVertical: "top" },
+  catDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+    marginBottom: spacing.md,
+  },
+  catOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(20,24,20,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+  },
+  catCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  catTitle: { fontSize: 15, marginBottom: spacing.sm },
+  catRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  addCatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  addCatInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  addCatBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   thumbWrap: {
     width: 74,
     height: 74,
