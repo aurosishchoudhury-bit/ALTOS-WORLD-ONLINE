@@ -338,7 +338,7 @@ export default function Admin() {
               >
                 <Feather name="heart" size={16} color={colors.brand} />
                 <AppText variant="semibold" style={styles.manageDiseasesText}>
-                  Shop by Disease — manage concerns & products
+                  Shop by Concern — manage concerns & products
                 </AppText>
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               </Pressable>

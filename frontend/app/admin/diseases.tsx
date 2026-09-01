@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, FlatList, Pressable, StyleSheet, Modal, ScrollView } from "react-native";
+import { View, FlatList, Pressable, StyleSheet, Modal, ScrollView, TextInput } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -17,6 +17,7 @@ export default function ManageDiseases() {
   const toast = useToast();
 
   const [diseases, setDiseases] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -97,20 +98,39 @@ export default function ManageDiseases() {
           <Feather name="arrow-left" size={22} color={colors.onSurface} />
         </Pressable>
         <AppText variant="semibold" style={styles.title}>
-          Shop by Disease
+          Shop by Concern
         </AppText>
         <Pressable testID="add-disease" onPress={() => openForm()} hitSlop={12} style={styles.backBtn}>
           <Feather name="plus" size={22} color={colors.brand} />
         </Pressable>
       </View>
 
+      <View style={styles.searchBar}>
+        <Feather name="search" size={16} color={colors.muted} />
+        <TextInput
+          testID="concern-search"
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search concerns…"
+          placeholderTextColor={colors.muted}
+          style={styles.searchInput}
+        />
+        {!!search && (
+          <Pressable testID="concern-search-clear" onPress={() => setSearch("")} hitSlop={8}>
+            <Feather name="x" size={16} color={colors.muted} />
+          </Pressable>
+        )}
+      </View>
+
       <FlatList
-        data={diseases}
+        data={diseases.filter((d) => d.name.toLowerCase().includes(search.trim().toLowerCase()))}
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }}
         ListEmptyComponent={
           <AppText variant="body" color={colors.muted} style={styles.empty}>
-            No health concerns yet. Tap + to add one and map products to it.
+            {search.trim()
+              ? `No concerns matching "${search.trim()}"`
+              : "No health concerns yet. Tap + to add one and map products to it."}
           </AppText>
         }
         renderItem={({ item }) => (
@@ -223,6 +243,20 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: colors.onSurface },
   empty: { fontSize: 13, textAlign: "center", marginTop: spacing.xl },
   card: {
     flexDirection: "row",

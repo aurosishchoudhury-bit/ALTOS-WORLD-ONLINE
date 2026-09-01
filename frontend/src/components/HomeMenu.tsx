@@ -89,7 +89,7 @@ export default function HomeMenu({ visible, onClose, categories, onSelectCategor
             <Item
               testID="menu-diseases"
               icon="heart"
-              label="Shop by Disease"
+              label="Shop by Concern"
               onPress={() => go("/diseases")}
             />
             <Item

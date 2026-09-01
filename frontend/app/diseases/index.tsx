@@ -29,7 +29,7 @@ export default function DiseasesScreen() {
   );
 
   return (
-    <InfoPage title="Shop by Disease">
+    <InfoPage title="Shop by Concern">
       <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.intro}>
         Pick a health concern to see the products recommended for it.
       </AppText>

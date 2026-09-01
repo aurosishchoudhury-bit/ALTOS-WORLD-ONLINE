@@ -346,7 +346,7 @@ async def add_review(product_id: str, payload: ReviewIn):
 
 
 # ---------------- Home banners ----------------
-MAX_BANNERS = 4
+MAX_BANNERS = 8
 
 
 @api_router.get("/banners")

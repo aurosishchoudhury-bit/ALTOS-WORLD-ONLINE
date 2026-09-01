@@ -11,7 +11,7 @@ import { useToast } from "@/src/components/Toast";
 import { api, API, resolveImageUri } from "@/src/api/client";
 import { colors, spacing, radius } from "@/src/theme/theme";
 
-const MAX_BANNERS = 4;
+const MAX_BANNERS = 8;
 
 export default function ManageBanners() {
   const router = useRouter();
