@@ -21,7 +21,7 @@ import FormField from "@/src/components/FormField";
 import { useCart } from "@/src/context/CartContext";
 import { useToast } from "@/src/components/Toast";
 import { api, Product, resolveImageUri } from "@/src/api/client";
-import { colors, spacing, formatINR } from "@/src/theme/theme";
+import { colors, spacing, radius, formatINR } from "@/src/theme/theme";
 import { useAltosAuth } from "@/src/context/AltosAuthContext";
 import { getPriceInfo, discountPercent, maxQtyFor, isHeavyItem } from "@/src/utils/pricing";
 
@@ -280,6 +280,40 @@ export default function ProductDetail() {
             </>
           )}
 
+          {!!(product as any).ingredients && (
+            <>
+              <View style={styles.dosageBox} testID="ingredients-box">
+                <View style={styles.dosageHeader}>
+                  <Feather name="feather" size={15} color={colors.brand} />
+                  <AppText variant="semibold" style={styles.dosageTitle}>
+                    Ingredients
+                  </AppText>
+                </View>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.dosageText}>
+                  {(product as any).ingredients}
+                </AppText>
+              </View>
+              <View style={styles.divider} />
+            </>
+          )}
+
+          {!!(product as any).benefits && (
+            <>
+              <View style={styles.dosageBox} testID="benefits-box">
+                <View style={styles.dosageHeader}>
+                  <Feather name="heart" size={15} color={colors.brand} />
+                  <AppText variant="semibold" style={styles.dosageTitle}>
+                    Benefits
+                  </AppText>
+                </View>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.dosageText}>
+                  {(product as any).benefits}
+                </AppText>
+              </View>
+              <View style={styles.divider} />
+            </>
+          )}
+
           <View style={styles.infoCard} testID="shipping-info">
             <View style={styles.infoRow}>
               <Feather name="truck" size={16} color={colors.brand} />
@@ -304,6 +338,28 @@ export default function ProductDetail() {
           </View>
 
           <View style={styles.divider} />
+
+          {product.category === "Supplements" && (
+            <>
+              <View style={styles.disclaimerBox} testID="ayurvedic-disclaimer">
+                <View style={styles.dosageHeader}>
+                  <Feather name="alert-circle" size={15} color="#8A6D00" />
+                  <AppText variant="semibold" style={styles.disclaimerTitle}>
+                    Disclaimer
+                  </AppText>
+                </View>
+                <AppText variant="body" color={colors.onSurfaceSecondary} style={styles.disclaimerText}>
+                  These ayurvedic formulations are for general wellness. These products are not
+                  intended to diagnose, treat or cure any disease. Always consult with a qualified
+                  healthcare provider before using any herbal or ayurvedic products, especially if
+                  you are:{"\n"}• Pregnant or nursing{"\n"}• Currently taking prescription
+                  medications{"\n"}• Planning to have surgery{"\n"}• Dealing with an existing
+                  medical condition
+                </AppText>
+              </View>
+              <View style={styles.divider} />
+            </>
+          )}
 
           <View style={styles.reviewsHeader} testID="reviews-section">
             <AppText variant="displaySemiBold" style={styles.reviewsTitle}>
@@ -600,6 +656,13 @@ const styles = StyleSheet.create({
   dosageHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   dosageTitle: { fontSize: 14 },
   dosageText: { fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
+  disclaimerBox: {
+    backgroundColor: "#FFF9EA",
+    borderRadius: radius.md,
+    padding: spacing.lg,
+  },
+  disclaimerTitle: { fontSize: 14, color: "#8A6D00" },
+  disclaimerText: { fontSize: 12.5, lineHeight: 20, marginTop: spacing.sm },
   reviewsHeader: {
     marginTop: spacing.md,
   },
